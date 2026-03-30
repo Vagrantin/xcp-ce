@@ -1,4 +1,3 @@
 # XCP-CE
 
-dump to put brainstorm on the xcp architecture 
-Gather useful information.
+This tool is to put together XCP-NG where the XO lite deploy XOA button will deploy XOA-ce from Rinovay's image
