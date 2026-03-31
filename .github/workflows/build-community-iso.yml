@@ -16,6 +16,7 @@ on:
 jobs:
   # ── Job 1: Build the ISO ────────────────────────────────────────────────────
   build-iso:
+    needs: toto
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
