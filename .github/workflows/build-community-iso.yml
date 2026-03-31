@@ -33,7 +33,7 @@ jobs:
 
       - name: Download official XCP-ng ISO
         run: |
-          ISO_URL="https://mirrors.xcp-ng.org/isos/${{ github.event.inputs.xcpng_major_version }}/xcp-ng-${{ github.event.inputs.xcpng_minor_version }}.iso"
+          ISO_URL="https://mirrors.xcp-ng.org/isos/8.3/xcp-ng-8.3.0-20250606.2.iso"
           echo "Downloading: ${ISO_URL}"
           wget -q --show-progress -O xcpng-official.iso "${ISO_URL}"
 
@@ -178,10 +178,10 @@ jobs:
             ### What's different
             - XO Lite's "Deploy XOA" button fetches the latest community image URL
               at runtime from `https://xo-image.yawn.fi/downloads/image.txt`
-            - Everything else is identical to the official XCP-ng ${{ github.event.inputs.xcpng_major_version }} ISO
+            - Everything else is identical to the official XCP-ng 8.3 ISO
             
             ### Base ISO
-            Official XCP-ng `${{ github.event.inputs.xcpng_major_version }}`
+            Official XCP-ng 8.3
             
             > **Note:** This is a community build, not supported by Vates.
           files: ${{ env.OUTPUT }}
