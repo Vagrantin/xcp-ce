@@ -6,12 +6,10 @@ on:
       - buildiso
     inputs:
       xcpng_major_version:
-        description: 'https://mirrors.xcp-ng.org/isos/8.3/xcp-ng-8.3.0-20250606.2.iso?https=1'
+        description: 'XCP-ng Community ISO'
         required: true
         default: '8.3'
       xcpng_minor_version:
-        description: 'https://mirrors.xcp-ng.org/isos/8.3/xcp-ng-8.3.0-20250606.2.iso?https=1'
-        required: true
         default: '8.3.0-20250606.2'
       release_tag:
         description: 'Release tag (e.g. 8.3.0-community-20260331)'
