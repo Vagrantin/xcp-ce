@@ -2,8 +2,6 @@ name: Build XCP-ng Community ISO
 
 on:
   workflow_dispatch:
-    branches:
-      - buildiso
     inputs:
       xcpng_major_version:
         description: 'XCP-ng Community ISO'
