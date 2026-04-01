@@ -69,30 +69,30 @@ jobs:
           echo "▶ Answerfile created:"
           cat answerfile.xml
 
-      - name: Inject answerfile into install.img (Safe Unpack/Repack)
+      - name: Inject answerfile into install.img
         run: |
-          echo "▶ Preparing workspace..."
-          mkdir -p installer-root
+          echo "▶ Verifying install.img format..."
+          file iso-work/install.img   # should confirm: Squashfs filesystem
 
-          # 1. Unpack the concatenated layers using cpio
-          # This handles the multiple segments in the XCP-ng initrd correctly
-          cd installer-root
-          sudo cpio -id < ../iso-work/install.img 2>/dev/null || true
+          echo "▶ Unpacking SquashFS install.img..."
+          sudo unsquashfs -d installer-root iso-work/install.img
 
-          # 2. Inject the answerfile into the root
-          echo "▶ Injecting answerfile.xml..."
-          sudo cp ../answerfile.xml ./answerfile.xml
-          sudo chmod 644 ./answerfile.xml
+          echo "▶ Injecting answerfile.xml at ramdisk root..."
+          sudo cp answerfile.xml installer-root/answerfile.xml
+          sudo chmod 644 installer-root/answerfile.xml
 
-          # 3. Repack the image
-          # CRITICAL: We must repack using the same format the kernel expects.
-          # For XCP-ng 8.3, we use a compressed CPIO format.
-          echo "▶ Repacking install.img..."
-          # Using -H newc for the format and xz for compression
-          sudo find . | sudo cpio -H newc -o | xz -9 --check=crc32 > ../iso-work/install.img
+          echo "▶ Verifying injection..."
+          ls -lh installer-root/answerfile.xml
+          cat installer-root/answerfile.xml
 
-          cd ..
+          echo "▶ Repacking as SquashFS with xz compression (same as original)..."
+          rm -f iso-work/install.img
+          sudo mksquashfs installer-root iso-work/install.img \
+            -comp xz -b 131072 -noappend -no-progress
+
           sudo rm -rf installer-root
+          echo "▶ New install.img: $(du -h iso-work/install.img)"
+
 
       - name: Patch isolinux.cfg (Point to absolute root)
         run: |
