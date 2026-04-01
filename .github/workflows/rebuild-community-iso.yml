@@ -30,8 +30,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y xorriso genisoimage isomd5sum \
                                   rpm2cpio cpio rpm
-          wget https://downloads.sourceforge.net/project/rpmrebuild/rpmrebuild/1.16/rpmrebuild-1.16.tar.gz
-          tar -xvf rpmrebuild-1.16.tar.gz -C rpmrebuild
+          wget --max-redirect=5 -O rpmrebuild-2.21.tar.gz https://master.dl.sourceforge.net/project/rpmrebuild/rpmrebuild/2.21/rpmrebuild-2.21.tar.gz?viasf=1
+          tar -xvf rpmrebuild-2.21.tar.gz -C rpmrebuild
           echo "$(pwd)/rpmrebuild" >> $GITHUB_PATH
 
 
