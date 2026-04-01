@@ -69,35 +69,38 @@ jobs:
           echo "▶ Answerfile created:"
           cat answerfile.xml
 
-      - name: Inject answerfile into install.img (Split & Rebuild)
+      - name: Inject answerfile into install.img (Safe Unpack/Repack)
         run: |
-          # 1. Find the offset where the SquashFS starts (hsqs signature)
-          OFFSET=$(grep -aboH 'hsqs' iso-work/install.img | head -n 1 | cut -d: -f2)
-          echo "▶ SquashFS offset found at: ${OFFSET}"
+          echo "▶ Preparing workspace..."
+          mkdir -p installer-root
 
-          # 2. Extract the leading CPIO(s) - the "Header"
-          dd if=iso-work/install.img of=header.img bs=1 count=${OFFSET}
+          # 1. Unpack the concatenated layers using cpio
+          # This handles the multiple segments in the XCP-ng initrd correctly
+          cd installer-root
+          sudo cpio -id < ../iso-work/install.img 2>/dev/null || true
 
-          # 3. Extract and Unpack the SquashFS - the "Payload"
-          dd if=iso-work/install.img of=payload.squashfs bs=1 skip=${OFFSET}
-          sudo unsquashfs -d installer-root payload.squashfs
-
-          # 4. Inject the answerfile
+          # 2. Inject the answerfile into the root
           echo "▶ Injecting answerfile.xml..."
-          sudo cp answerfile.xml installer-root/answerfile.xml
-          sudo chmod 644 installer-root/answerfile.xml
+          sudo cp ../answerfile.xml ./answerfile.xml
+          sudo chmod 644 ./answerfile.xml
 
-          # 5. Repack SquashFS with original XCP-ng parameters
-          # We use -comp xz and -b 1M to match official compression
-          sudo rm -f new_payload.squashfs
-          sudo mksquashfs installer-root/ new_payload.squashfs -comp xz -b 1M -noappend
+          # 3. Repack the image
+          # CRITICAL: We must repack using the same format the kernel expects.
+          # For XCP-ng 8.3, we use a compressed CPIO format.
+          echo "▶ Repacking install.img..."
+          # Using -H newc for the format and xz for compression
+          sudo find . | sudo cpio -H newc -o | xz -9 --check=crc32 > ../iso-work/install.img
 
-          # 6. Re-concatenate: Header + New Payload
-          cat header.img new_payload.squashfs > iso-work/install.img
+          cd ..
+          sudo rm -rf installer-root
 
-          # Cleanup
-          sudo rm -rf installer-root header.img payload.squashfs new_payload.squashfs
-          echo "▶ Rebuilt install.img size: $(du -h iso-work/install.img)"
+      - name: Patch isolinux.cfg (Point to absolute root)
+        run: |
+          ISOLINUX_CFG="iso-work/boot/isolinux/isolinux.cfg"
+
+          # Because we injected it into the root of install.img,
+          # the path must be file:///answerfile.xml
+          sed -i 's|--- /install.img|answerfile=file:///answerfile.xml install --- /install.img|' "${ISOLINUX_CFG}"
       
 
       - name: Patch isolinux.cfg to load answerfile automatically
