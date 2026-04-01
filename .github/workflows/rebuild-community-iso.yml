@@ -63,7 +63,7 @@ jobs:
           --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
-          NEW_RPM=$(ls xo-lite*.rpm)
+          NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
           rm -f ${{ steps.find-rpm.outputs.rpm_path }}
           mv "$NEW_RPM" iso-work/Packages/
 
