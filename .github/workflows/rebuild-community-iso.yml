@@ -32,7 +32,7 @@ jobs:
                                   rpm2cpio cpio rpm
           wget --max-redirect=5 -O rpmrebuild-2.21.tar.gz https://master.dl.sourceforge.net/project/rpmrebuild/rpmrebuild/2.21/rpmrebuild-2.21.tar.gz?viasf=1
           tar -xvf rpmrebuild-2.21.tar.gz
-          ls rpmrebuild-2.21
+          ls rpmrebuild
           echo "$GITHUB_WORKSPACE/rpmrebuild-2.21" >> $GITHUB_PATH
           RPMREBUILDPATH="$(pwd)/rpmrebuild-2.21"
 
