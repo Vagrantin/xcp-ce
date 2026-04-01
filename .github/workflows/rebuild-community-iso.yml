@@ -33,7 +33,7 @@ jobs:
           wget --max-redirect=5 -O rpmrebuild-2.21.tar.gz https://master.dl.sourceforge.net/project/rpmrebuild/rpmrebuild/2.21/rpmrebuild-2.21.tar.gz?viasf=1
           tar -xvf rpmrebuild-2.21.tar.gz
           echo "$GITHUB_WORKSPACE/rpmrebuild-2.21" >> $GITHUB_PATH
-
+          RPMREBUILDPATH="$(pwd)/rpmrebuild-2.21"
 
       - name: Download official XCP-ng ISO
         run: |
@@ -56,7 +56,7 @@ jobs:
 
       - name: Rebuild RPM 
         run: |
-          rpmrebuild --batch ---release="2" -directory=. \
+          $(RPMREBUILDPATH)/rpmrebuild --batch --release="2" --directory=. \
           --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
