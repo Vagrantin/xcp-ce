@@ -71,29 +71,39 @@ jobs:
 
       - name: Inject answerfile into install.img
         run: |
-          # 1. Find the offset of the SquashFS signature (hsqs)
-          OFFSET=$(grep -aboH 'hsqs' iso-work/install.img | cut -d: -f2)
-          echo "SquashFS found at offset: $OFFSET"
+          echo "▶ Locating SquashFS offset..."
+          # Search for 'hsqs' or 'HSQS' and take the first match
+          OFFSET=$(grep -aboP 'hsqs|HSQS' iso-work/install.img | head -n 1 | cut -d: -f1)
 
-          # 2. Extract the SquashFS portion to a temporary file
+          if [ -z "$OFFSET" ]; then
+            echo "Error: Could not find SquashFS signature in install.img"
+            exit 1
+          fi
+
+          echo "▶ SquashFS found at offset: $OFFSET"
+
+          # 1. Extract the CPIO header (microcode/init logic)
+          dd if=iso-work/install.img of=header.cpio bs=1 count=$OFFSET
+
+          # 2. Extract the SquashFS portion
           dd if=iso-work/install.img of=rootfs.squashfs bs=1 skip=$OFFSET
 
-          # 3. Unsquash the rootfs
+          # 3. Unpack and Modify
           sudo unsquashfs -d installer-root rootfs.squashfs
-
-          # 4. Inject your answerfile
           sudo cp answerfile.xml installer-root/answerfile.xml
           sudo chmod 644 installer-root/answerfile.xml
 
-          # 5. Repack the SquashFS
+          # 4. Repack SquashFS
+          # Note: We use -comp xz and -b 1M as per XCP-ng defaults
           sudo rm -f rootfs.squashfs
-          sudo mksquashfs installer-root rootfs.squashfs -comp xz -b 1M
+          sudo mksquashfs installer-root/ rootfs.squashfs -comp xz -b 1M -noappend
 
-          # 6. Reconstruct the dual-format install.img
-          # We keep the original CPIO part and append our new SquashFS
-          dd if=iso-work/install.img of=header.cpio bs=1 count=$OFFSET
+          # 5. Reassemble the concatenated image
           cat header.cpio rootfs.squashfs > iso-work/install.img
+
           sudo rm -rf installer-root header.cpio rootfs.squashfs
+          echo "▶ Successfully rebuilt install.img"
+
 
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
