@@ -111,7 +111,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag }}
+          tag_name: ${{ github.ref_name }}
           name: "XCP-ng Community Edition ${{ github.event.inputs.release_tag }}"
           body: |
             ## XCP-ng Community ISO — Community Edition
