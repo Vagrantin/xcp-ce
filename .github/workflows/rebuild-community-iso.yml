@@ -20,6 +20,9 @@ jobs:
   # ── Job 1: Build the ISO ────────────────────────────────────────────────────
   build-iso:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     timeout-minutes: 90
 
     steps:
