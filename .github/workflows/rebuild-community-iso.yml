@@ -56,7 +56,7 @@ jobs:
 
       - name: Rebuild RPM 
         run: |
-          $(RPMREBUILDPATH)/rpmrebuild --batch --release="2" --directory=. \
+          "$(RPMREBUILDPATH)"/rpmrebuild --batch --release="2" --directory=. \
           --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
