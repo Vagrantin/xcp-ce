@@ -76,7 +76,7 @@ jobs:
           cat "${ISOLINUX_CFG}"
 
           sed -i \
-            's|--- /install.img|answerfile=file://answerfile.xml install --- /install.img|' \
+            's|--- /install.img|answerfile=device://cdrom/answerfile.xml install --- /install.img|' \
             "${ISOLINUX_CFG}"
 
           echo "▶ After patch:"
