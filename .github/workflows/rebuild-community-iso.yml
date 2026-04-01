@@ -69,34 +69,29 @@ jobs:
           echo "▶ Answerfile created:"
           cat answerfile.xml
 
-      - name: Inject answerfile into install.img (Mount Method)
+      - name: Inject answerfile into install.img (Decompress & Modify)
         run: |
-          echo "▶ Creating mount points..."
-          mkdir -p mnt_image
+          echo "▶ Decompressing install.img..."
+          # The file is likely an XZ archive containing the SquashFS
+          xz -dc iso-work/install.img > install.raw || cat iso-work/install.img > install.raw
 
-          # 1. Mount the install.img as a loop device
-          # The docs use 'mount -o loop', which treats it as a mountable filesystem
-          sudo mount -o loop iso-work/install.img mnt_image
+          echo "▶ Extracting RootFS..."
+          mkdir -p installer-root
+          # Now unsquashfs should work on the raw decompressed file
+          sudo unsquashfs -d installer-root install.raw
 
-          # 2. Create a writable workspace (since SquashFS mounts are Read-Only)
-          mkdir -p mnt_writable
-          rsync -a mnt_image/ mnt_writable/
-
-          # 3. Inject the answerfile into the root of the filesystem
           echo "▶ Injecting answerfile.xml..."
-          cp answerfile.xml mnt_writable/answerfile.xml
-          chmod 644 mnt_writable/answerfile.xml
+          sudo cp answerfile.xml installer-root/answerfile.xml
+          sudo chmod 644 installer-root/answerfile.xml
 
-          # 4. Unmount the original
-          sudo umount mnt_image
-
-          # 5. Repack the image using mksquashfs as per XCP-ng specs
           echo "▶ Repacking install.img..."
+          # XCP-ng 8.3 expects the final install.img to be a SquashFS
           rm -f iso-work/install.img
-          sudo mksquashfs mnt_writable/ iso-work/install.img -comp xz -b 1M -noappend
+          sudo mksquashfs installer-root/ iso-work/install.img -comp xz -b 1M -noappend
 
-          # Cleanup
-          sudo rm -rf mnt_image mnt_writable
+          sudo rm -rf installer-root install.raw
+          echo "▶ New install.img size: $(du -h iso-work/install.img)"
+
 
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
