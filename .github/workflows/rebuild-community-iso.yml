@@ -57,7 +57,7 @@ jobs:
         run: |
           cat > iso-work/answerfile.xml << 'EOF'
           <?xml version="1.0"?>
-          <installation gpgcheck="false" repo_gpgcheck="false">
+          <installation gpgcheck="false" repo_gpgcheck="false" srtype="ext" mode="fresh">
             <keymap>us</keymap>
             <root-password>matthd</root-password>
             <source type="local" />
@@ -76,7 +76,7 @@ jobs:
           cat "${ISOLINUX_CFG}"
 
           sed -i \
-            's|--- /install.img|answerfile=file:///answerfile.xml install --- /install.img|' \
+            's|--- /install.img|answerfile=file://answerfile.xml install --- /install.img|' \
             "${ISOLINUX_CFG}"
 
           echo "▶ After patch:"
