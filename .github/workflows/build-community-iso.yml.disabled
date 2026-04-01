@@ -108,6 +108,7 @@ jobs:
           /opt/xensource/www/manifest.webmanifest
           /opt/xensource/www/xolite.html
           SPEC
+
           echo "After SPEC"
           echo "rpm-extract"
           ls -lR rpm-extract

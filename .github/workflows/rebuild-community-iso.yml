@@ -1,0 +1,132 @@
+name: Build XCP-ng Community ISO
+
+on:
+  push:
+    branches:
+      - buildiso
+  workflow_dispatch:
+    inputs:
+      xcpng_major_version:
+        description: 'XCP-ng Community ISO'
+        required: true
+        default: '8.3'
+      xcpng_minor_version:
+        default: '8.3.0-20250606.2'
+      release_tag:
+        description: 'Release tag (e.g. 8.3.0-community-20260331)'
+        required: true
+
+jobs:
+  # ── Job 1: Build the ISO ────────────────────────────────────────────────────
+  build-iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xorriso genisoimage isomd5sum \
+                                  rpm2cpio cpio rpm
+          wget https://downloads.sourceforge.net/project/rpmrebuild/rpmrebuild/1.16/rpmrebuild-1.16.tar.gz
+          tar -xvf rpmrebuild-1.16.tar.gz -C rpmrebuild
+          echo "$(pwd)/rpmrebuild" >> $GITHUB_PATH
+
+
+      - name: Download official XCP-ng ISO
+        run: |
+          ISO_URL="https://mirrors.xcp-ng.org/isos/8.3/xcp-ng-8.3.0-20250606.2.iso"
+          echo "Downloading: ${ISO_URL}"
+          wget -q --show-progress -O xcpng-official.iso "${ISO_URL}"
+
+      - name: Extract ISO
+        run: |
+          mkdir -p iso-work
+          xorriso -osirrox on -indev xcpng-official.iso -extract / iso-work/ 2>/dev/null || true
+          chmod -R u+w iso-work/
+
+      - name: Find XO Lite RPM name
+        id: find-rpm
+        run: |
+          RPM=$(find iso-work/Packages/ -name "xo-lite*.rpm" 2>/dev/null | head -1)
+          echo "rpm_path=${RPM}" >> $GITHUB_OUTPUT
+          echo "Found: ${RPM}"
+
+      - name: Rebuild RPM 
+        run: |
+          rpmrebuild --batch ---release="2" -directory=. \
+          --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
+          -p ${{ steps.find-rpm.outputs.rpm_path }}
+
+          NEW_RPM=$(ls xo-lite*.rpm)
+          rm -f ${{ steps.find-rpm.outputs.rpm_path }}
+          mv "$NEW_RPM" iso-work/Packages/
+
+          echo "Patched RPM moved to iso-work/Packages/"
+
+      - name: Update ISO package index
+        run: |
+          # Regenerate the repodata so the installer finds the new RPM
+          if command -v createrepo_c &>/dev/null; then
+            createrepo_c --update iso-work/
+          elif command -v createrepo &>/dev/null; then
+            createrepo --update iso-work/
+          else
+            sudo apt-get install -y createrepo-c
+            createrepo_c --update iso-work/
+          fi
+
+      - name: Repack ISO
+        run: |
+          TAG="${{ github.event.inputs.release_tag }}"
+          OUTPUT="xcp-ng-${TAG}.iso"
+          
+          # Capture original boot catalog and efi parameters from the source ISO
+          xorriso -indev xcpng-official.iso -report_system_area cmd 2>/dev/null > boot-params.txt || true
+          
+          genisoimage \
+            -o "${OUTPUT}" \
+            -r -J -joliet-long \
+            -V "XCP-ng ${TAG}" \
+            -c boot/isolinux/boot.cat \
+            -b boot/isolinux/isolinux.bin \
+            -no-emul-boot \
+            -boot-load-size 4 \
+            -boot-info-table \
+            -eltorito-alt-boot \
+            -e boot/efiboot.img \
+            -no-emul-boot \
+            iso-work/ 2>&1
+          
+          implantisomd5 "${OUTPUT}" || true
+          
+          echo "OUTPUT=${OUTPUT}" >> $GITHUB_ENV
+          ls -lh "${OUTPUT}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: "XCP-ng Community Edition ${{ github.event.inputs.release_tag }}"
+          body: |
+            ## XCP-ng Community ISO — Community Edition
+            
+            This is an unofficial community build of XCP-ng with XO Lite patched
+            to deploy the [community XOA image](https://xo-image.yawn.fi/) instead
+            of the official Vates appliance.
+            
+            ### What's different
+            - XO Lite's "Deploy XOA" button fetches the latest community image URL
+              at runtime from `https://xo-image.yawn.fi/downloads/image.txt`
+            - Everything else is identical to the official XCP-ng 8.3 ISO
+            
+            ### Base ISO
+            Official XCP-ng 8.3
+            
+            > **Note:** This is a community build, not supported by Vates.
+          files: ${{ env.OUTPUT }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
