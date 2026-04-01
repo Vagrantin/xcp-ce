@@ -98,7 +98,6 @@ jobs:
           %install
           install -d -m 755 %{buildroot}/opt/xensource/www
           cp -a * %{buildroot}/opt/xensource/www
-          rm %{buildroot}/opt/xensource/www/LICENSE %{buildroot}/opt/xensource/www/CHANGELOG.md
           
           %files
           /opt/xensource/www/assets
