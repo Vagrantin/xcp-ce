@@ -31,9 +31,8 @@ jobs:
           sudo apt-get install -y xorriso genisoimage isomd5sum \
                                   rpm2cpio cpio rpm
           wget --max-redirect=5 -O rpmrebuild-2.21.tar.gz https://master.dl.sourceforge.net/project/rpmrebuild/rpmrebuild/2.21/rpmrebuild-2.21.tar.gz?viasf=1
-          mkdir -p rpmrebuild
-          tar -xvf rpmrebuild-2.21.tar.gz -C rpmrebuild
-          echo "$(pwd)/rpmrebuild" >> $GITHUB_PATH
+          tar -xvf rpmrebuild-2.21.tar.gz
+          echo "$GITHUB_WORKSPACE/rpmrebuild-2.21" >> $GITHUB_PATH
 
 
       - name: Download official XCP-ng ISO
