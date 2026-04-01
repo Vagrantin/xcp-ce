@@ -95,22 +95,17 @@ jobs:
           %description
           XO Lite patched to fetch the community XOA image at runtime.
           
-          %prep
-          %autosetup -p1
-          
           %install
           install -d -m 755 %{buildroot}/opt/xensource/www
           cp -a * %{buildroot}/opt/xensource/www
           rm %{buildroot}/opt/xensource/www/LICENSE %{buildroot}/opt/xensource/www/CHANGELOG.md
           
           %files
-          %license LICENSE
           /opt/xensource/www/assets
           /opt/xensource/www/index.html
           /opt/xensource/www/favicon.svg
           /opt/xensource/www/manifest.webmanifest
           /opt/xensource/www/xolite.html
-          %doc CHANGELOG.md
           SPEC
           
           rpmbuild --define "_topdir $(pwd)/rpmbuild" \
