@@ -73,7 +73,7 @@ jobs:
           sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g' "$FILE"
           
           echo "=== Patched result ==="
-          grep -q "yawn" "$FILE" && echo "Community edition URL found" || echo "Community edition URL not found"
+          grep -q "yawn" "$FILE" && echo "Community edition URL found in " "$FILE" || echo "Community edition URL not found" "$FILE"
 
       - name: Repack RPM
         run: |
@@ -109,7 +109,10 @@ jobs:
           /opt/xensource/www/xolite.html
           SPEC
           echo "After SPEC"
-          ls -lR
+          echo "rpm-extract"
+          ls -lR rpm-extract
+          echo "rpmbuild"
+          ls -lR rpmbuild
           
           rpmbuild --define "_topdir $(pwd)/rpmbuild" \
                    --define "_builddir $(pwd)/rpm-extract" \
