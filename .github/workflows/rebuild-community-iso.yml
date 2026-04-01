@@ -71,25 +71,23 @@ jobs:
 
       - name: Inject answerfile into install.img
         run: |
+          echo "▶ Preparing workspace..."
+          mkdir -p installer-root
 
-          echo "▶ Unpacking install.img..."
-          sudo unsquashfs -d installer-root iso-work/install.img
+          echo "▶ Unpacking install.img (CPIO)..."
+          xzcat iso-work/install.img | (cd installer-root && sudo cpio -idm) || \
+          zcat iso-work/install.img | (cd installer-root && sudo cpio -idm)
 
-          echo "▶ Injecting answerfile.xml at ramdisk root..."
+          echo "▶ Injecting answerfile.xml at root..."
           sudo cp answerfile.xml installer-root/answerfile.xml
           sudo chmod 644 installer-root/answerfile.xml
 
-          echo "▶ Verifying injection..."
-          ls -lh installer-root/answerfile.xml
-          cat installer-root/answerfile.xml
-
           echo "▶ Repacking install.img..."
           rm -f iso-work/install.img
-          sudo mksquashfs installer-root iso-work/install.img \
-            -comp xz -b 131072 -noappend -no-progress
+          (cd installer-root && sudo find . | sudo cpio -H newc -o) | xz -9 --check=crc32 > iso-work/install.img
 
           sudo rm -rf installer-root
-          echo "▶ New install.img: $(du -h iso-work/install.img)"
+          echo "▶ New install.img size: $(du -h iso-work/install.img)"
 
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
