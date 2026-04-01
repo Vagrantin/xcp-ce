@@ -69,41 +69,34 @@ jobs:
           echo "▶ Answerfile created:"
           cat answerfile.xml
 
-      - name: Inject answerfile into install.img
+      - name: Inject answerfile into install.img (Mount Method)
         run: |
-          echo "▶ Locating SquashFS offset..."
-          # Search for 'hsqs' or 'HSQS' and take the first match
-          OFFSET=$(grep -aboP 'hsqs|HSQS' iso-work/install.img | head -n 1 | cut -d: -f1)
+          echo "▶ Creating mount points..."
+          mkdir -p mnt_image
 
-          if [ -z "$OFFSET" ]; then
-            echo "Error: Could not find SquashFS signature in install.img"
-            exit 1
-          fi
+          # 1. Mount the install.img as a loop device
+          # The docs use 'mount -o loop', which treats it as a mountable filesystem
+          sudo mount -o loop iso-work/install.img mnt_image
 
-          echo "▶ SquashFS found at offset: $OFFSET"
+          # 2. Create a writable workspace (since SquashFS mounts are Read-Only)
+          mkdir -p mnt_writable
+          rsync -a mnt_image/ mnt_writable/
 
-          # 1. Extract the CPIO header (microcode/init logic)
-          dd if=iso-work/install.img of=header.cpio bs=1 count=$OFFSET
+          # 3. Inject the answerfile into the root of the filesystem
+          echo "▶ Injecting answerfile.xml..."
+          cp answerfile.xml mnt_writable/answerfile.xml
+          chmod 644 mnt_writable/answerfile.xml
 
-          # 2. Extract the SquashFS portion
-          dd if=iso-work/install.img of=rootfs.squashfs bs=1 skip=$OFFSET
+          # 4. Unmount the original
+          sudo umount mnt_image
 
-          # 3. Unpack and Modify
-          sudo unsquashfs -d installer-root rootfs.squashfs
-          sudo cp answerfile.xml installer-root/answerfile.xml
-          sudo chmod 644 installer-root/answerfile.xml
+          # 5. Repack the image using mksquashfs as per XCP-ng specs
+          echo "▶ Repacking install.img..."
+          rm -f iso-work/install.img
+          sudo mksquashfs mnt_writable/ iso-work/install.img -comp xz -b 1M -noappend
 
-          # 4. Repack SquashFS
-          # Note: We use -comp xz and -b 1M as per XCP-ng defaults
-          sudo rm -f rootfs.squashfs
-          sudo mksquashfs installer-root/ rootfs.squashfs -comp xz -b 1M -noappend
-
-          # 5. Reassemble the concatenated image
-          cat header.cpio rootfs.squashfs > iso-work/install.img
-
-          sudo rm -rf installer-root header.cpio rootfs.squashfs
-          echo "▶ Successfully rebuilt install.img"
-
+          # Cleanup
+          sudo rm -rf mnt_image mnt_writable
 
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
