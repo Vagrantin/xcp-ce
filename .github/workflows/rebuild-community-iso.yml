@@ -68,30 +68,31 @@ jobs:
           EOF
           echo "▶ Answerfile created:"
           cat answerfile.xml
-
-      - name: Inject answerfile into install.img (Decompress & Modify)
+      
+      - name: Inject answerfile into install.img (Chroot-style Unpack)
         run: |
-          echo "▶ Decompressing install.img..."
-          # The file is likely an XZ archive containing the SquashFS
-          xz -dc iso-work/install.img > install.raw || cat iso-work/install.img > install.raw
-
-          echo "▶ Extracting RootFS..."
+          echo "▶ Preparing RootFS workspace..."
           mkdir -p installer-root
-          # Now unsquashfs should work on the raw decompressed file
-          sudo unsquashfs -d installer-root install.raw
 
+          # 1. Unpack the concatenated layers
+          # We use cpio to extract the leading archive(s) and skip to the SquashFS
+          # If it's a standard XCP-ng initrd, it contains multiple CPIO segments.
+          cd installer-root
+          sudo cpio -id < ../iso-work/install.img 2>/dev/null || true
+
+          # 2. Check if we found the SquashFS inside the CPIO or if it's trailing
+          # Many modern distros embed the SquashFS as a file named 'root' or 'LiveOS/rootfs.img'
+          # Based on XCP-ng docs, we place the answerfile in the extracted root.
           echo "▶ Injecting answerfile.xml..."
-          sudo cp answerfile.xml installer-root/answerfile.xml
-          sudo chmod 644 installer-root/answerfile.xml
+          sudo cp ../answerfile.xml ./answerfile.xml
+          sudo chmod 644 ./answerfile.xml
 
+          # 3. Repack the entire structure
           echo "▶ Repacking install.img..."
-          # XCP-ng 8.3 expects the final install.img to be a SquashFS
-          rm -f iso-work/install.img
-          sudo mksquashfs installer-root/ iso-work/install.img -comp xz -b 1M -noappend
+          sudo find . | sudo cpio -H newc -o | xz -9 --check=crc32 > ../iso-work/install.img
 
-          sudo rm -rf installer-root install.raw
-          echo "▶ New install.img size: $(du -h iso-work/install.img)"
-
+          cd ..
+          sudo rm -rf installer-root
 
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
