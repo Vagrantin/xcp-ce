@@ -32,7 +32,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y xorriso genisoimage isomd5sum \
-                                  rpm2cpio cpio rpm
+                                  rpm2cpio cpio rpm squashfs-tools
           wget --max-redirect=5 -O rpmrebuild-2.21.tar.gz https://master.dl.sourceforge.net/project/rpmrebuild/rpmrebuild/2.21/rpmrebuild-2.21.tar.gz?viasf=1
           mkdir rpmrebuild-2.21
           tar -xvf rpmrebuild-2.21.tar.gz -C rpmrebuild-2.21
@@ -55,7 +55,7 @@ jobs:
 
       - name: Create answerfile to bypass GPG checks
         run: |
-          cat > iso-work/answerfile.xml << 'EOF'
+          cat > answerfile.xml << 'EOF'
           <?xml version="1.0"?>
           <installation gpgcheck="false" repo_gpgcheck="false" srtype="ext" mode="fresh">
             <keymap>us</keymap>
@@ -67,7 +67,29 @@ jobs:
           </installation>
           EOF
           echo "▶ Answerfile created:"
-          cat iso-work/answerfile.xml
+          cat answerfile.xml
+
+      - name: Inject answerfile into install.img
+        run: |
+
+          echo "▶ Unpacking install.img..."
+          sudo unsquashfs -d installer-root iso-work/install.img
+
+          echo "▶ Injecting answerfile.xml at ramdisk root..."
+          sudo cp answerfile.xml installer-root/answerfile.xml
+          sudo chmod 644 installer-root/answerfile.xml
+
+          echo "▶ Verifying injection..."
+          ls -lh installer-root/answerfile.xml
+          cat installer-root/answerfile.xml
+
+          echo "▶ Repacking install.img..."
+          rm -f iso-work/install.img
+          sudo mksquashfs installer-root iso-work/install.img \
+            -comp xz -b 131072 -noappend -no-progress
+
+          sudo rm -rf installer-root
+          echo "▶ New install.img: $(du -h iso-work/install.img)"
 
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
@@ -76,7 +98,7 @@ jobs:
           cat "${ISOLINUX_CFG}"
 
           sed -i \
-            's|--- /install.img|answerfile=device://cdrom/answerfile.xml install --- /install.img|' \
+            's|--- /install.img|answerfile=file:///answerfile.xml install --- /install.img|' \
             "${ISOLINUX_CFG}"
 
           echo "▶ After patch:"
