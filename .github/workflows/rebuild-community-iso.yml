@@ -76,7 +76,7 @@ jobs:
           cat "${ISOLINUX_CFG}"
 
           sed -i \
-            '/APPEND.*vmlinuz/ s|--- /install.img|--- /install.img answerfile=file:///answerfile.xml|' \
+            's|--- /install.img|answerfile=file:///answerfile.xml install --- /install.img|' \
             "${ISOLINUX_CFG}"
 
           echo "▶ After patch:"
@@ -115,7 +115,7 @@ jobs:
 
       - name: Repack ISO
         run: |
-          TAG="${{ github.event.inputs.release_tag }}"
+          TAG="ce"
           OUTPUT="xcp-ng-${TAG}.iso"
           
           # Capture original boot catalog and efi parameters from the source ISO
