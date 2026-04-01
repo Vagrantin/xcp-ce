@@ -80,7 +80,9 @@ jobs:
           RPM="${{ steps.find-rpm.outputs.rpm_path }}"
           RPM_NAME=$(basename "${RPM}" .rpm)
           
-          mkdir -p rpmbuild/{BUILD,RPMS/noarch,SPECS,SRPMS}
+          mkdir -p rpmbuild/{BUILDROOT,RPMS/noarch,SPECS,SRPMS}
+          echo "Before SPEC"
+          ls -lR
           
           cat > rpmbuild/SPECS/xo-lite.spec << SPEC
           Name:     xo-lite-community
@@ -106,6 +108,8 @@ jobs:
           /opt/xensource/www/manifest.webmanifest
           /opt/xensource/www/xolite.html
           SPEC
+          echo "After SPEC"
+          ls -lR
           
           rpmbuild --define "_topdir $(pwd)/rpmbuild" \
                    --define "_builddir $(pwd)/rpm-extract" \
