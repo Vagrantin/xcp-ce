@@ -53,6 +53,35 @@ jobs:
           xorriso -osirrox on -indev xcpng-official.iso -extract / iso-work/ 2>/dev/null || true
           chmod -R u+w iso-work/
 
+      - name: Create answerfile to bypass GPG checks
+        run: |
+          cat > iso-work/answerfile.xml << 'EOF'
+          <?xml version="1.0"?>
+          <installation gpgcheck="false" repo_gpgcheck="false">
+            <keymap>us</keymap>
+            <root-password>matthd</root-password>
+            <source type="local" />
+            <primary-disk>sda</primary-disk>
+            <admin-interface name="eth0" proto="dhcp" />
+            <timezone>asia/tokyo</timezone>
+          </installation>
+          EOF
+          echo "▶ Answerfile created:"
+          cat iso-work/answerfile.xml
+
+      - name: Patch isolinux.cfg to load answerfile automatically
+        run: |
+          ISOLINUX_CFG="iso-work/boot/isolinux/isolinux.cfg"
+          echo "▶ Before patch:"
+          cat "${ISOLINUX_CFG}"
+
+          sed -i \
+            '/APPEND.*vmlinuz/ s|--- /install.img|--- /install.img answerfile=file:///answerfile.xml|' \
+            "${ISOLINUX_CFG}"
+
+          echo "▶ After patch:"
+          cat "${ISOLINUX_CFG}"
+
       - name: Find XO Lite RPM name
         id: find-rpm
         run: |
