@@ -60,7 +60,7 @@ jobs:
           cat "${ISOLINUX_CFG}"
 
           sed -i \
-            's|--- /install.img|answerfile=http://192.168.0.1/answerfile.xml install --- /install.img|' \
+          's|--- /install.img|answerfile=http://192.168.0.1:3000/answerfile.xml install --- /install.img|' \
             "${ISOLINUX_CFG}"
 
           echo "▶ After patch:"
