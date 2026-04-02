@@ -91,15 +91,11 @@ jobs:
 
           echo "Patched RPM moved to iso-work/Packages/"
 
-      - name: Debug grep inside RPM check xo-image
-        run: |
-          rpm2cpio ${{ steps.find-rpm.outputs.rpm_path }} | cpio -idmv 2>/dev/null
-          grep -Ir 'xo-image' .
-
       - name: Rebuild RPM - update index.html
         run: |
+          chmod +x $GITHUB_WORKSPACE/updateindexhtml.sh
           ./rpmrebuild-2.21/rpmrebuild.sh --batch --release="2" --directory=. \
-          --change-files="grep -Irl 'lite\.xen-orchestra\.com' . | head -n 1 | xargs -r sed -i -e '/try {/,/\/\/ Fallback to local version of XO Lite/d' -e '/^        }$/d' '$INDEX'" \
+          --change-files="$GITHUB_WORKSPACE/updateindexhtml.sh" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
           NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
@@ -107,6 +103,12 @@ jobs:
           mv "$NEW_RPM" iso-work/Packages/
 
           echo "Patched RPM moved to iso-work/Packages/"
+
+      - name: Debug grep inside RPM check xo-image index.html
+        run: |
+          rpm2cpio ${{ steps.find-rpm.outputs.rpm_path }} | cpio -idmv 2>/dev/null
+          grep -Ir 'xo-image' .
+          find . -name "index.html" | xargs cat
 
       - name: Update ISO package index
         run: |
