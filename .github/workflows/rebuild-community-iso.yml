@@ -82,7 +82,7 @@ jobs:
         run: |
           chmod +x $GITHUB_WORKSPACE/updatexodeploy.sh
           ./rpmrebuild-2.21/rpmrebuild.sh --batch --release="2" --directory=. \
-          --change-files="$GITHUB_WORKSPACE/updatexodeploy.sh" \
+          --change-files="grep -Irl 'xoa\.io' . --include='*.js' | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
           NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
