@@ -76,7 +76,7 @@ jobs:
       - name: Rebuild RPM - update XoaDeploy
         run: |
           ./rpmrebuild-2.21/rpmrebuild.sh --batch --directory=. \
-          --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
+          --change-files="grep -Irl 'xoa\.io' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
           NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
