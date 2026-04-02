@@ -101,14 +101,7 @@ jobs:
           NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
           rm -f ${{ steps.find-rpm.outputs.rpm_path }}
           mv "$NEW_RPM" iso-work/Packages/
-
           echo "Patched RPM moved to iso-work/Packages/"
-
-      - name: Debug grep inside RPM check xo-image index.html
-        run: |
-          rpm2cpio ${{ steps.find-rpm.outputs.rpm_path }} | cpio -idmv 2>/dev/null
-          grep -Ir 'xo-image' .
-          find . -name "index.html" | xargs cat
 
       - name: Update ISO package index
         run: |
