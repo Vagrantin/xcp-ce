@@ -53,56 +53,6 @@ jobs:
           xorriso -osirrox on -indev xcpng-official.iso -extract / iso-work/ 2>/dev/null || true
           chmod -R u+w iso-work/
 
-      - name: Create answerfile to bypass GPG checks
-        run: |
-          cat > answerfile.xml << 'EOF'
-          <?xml version="1.0"?>
-          <installation gpgcheck="false" repo_gpgcheck="false" srtype="ext" mode="fresh">
-            <keymap>us</keymap>
-            <root-password>matthd</root-password>
-            <source type="local" />
-            <primary-disk>sda</primary-disk>
-            <admin-interface name="eth0" proto="dhcp" />
-            <timezone>asia/tokyo</timezone>
-          </installation>
-          EOF
-          echo "▶ Answerfile created:"
-          cat answerfile.xml
-
-      - name: Inject answerfile into install.img
-        run: |
-          echo "▶ Verifying install.img format..."
-          file iso-work/install.img   # should confirm: Squashfs filesystem
-
-          echo "▶ Unpacking SquashFS install.img..."
-          sudo unsquashfs -d installer-root iso-work/install.img
-
-          echo "▶ Injecting answerfile.xml at ramdisk root..."
-          sudo cp answerfile.xml installer-root/answerfile.xml
-          sudo chmod 644 installer-root/answerfile.xml
-
-          echo "▶ Verifying injection..."
-          ls -lh installer-root/answerfile.xml
-          cat installer-root/answerfile.xml
-
-          echo "▶ Repacking as SquashFS with xz compression (same as original)..."
-          rm -f iso-work/install.img
-          sudo mksquashfs installer-root iso-work/install.img \
-            -comp xz -b 131072 -noappend -no-progress
-
-          sudo rm -rf installer-root
-          echo "▶ New install.img: $(du -h iso-work/install.img)"
-
-
-      - name: Patch isolinux.cfg (Point to absolute root)
-        run: |
-          ISOLINUX_CFG="iso-work/boot/isolinux/isolinux.cfg"
-
-          # Because we injected it into the root of install.img,
-          # the path must be file:///answerfile.xml
-          sed -i 's|--- /install.img|answerfile=file:///answerfile.xml install --- /install.img|' "${ISOLINUX_CFG}"
-      
-
       - name: Patch isolinux.cfg to load answerfile automatically
         run: |
           ISOLINUX_CFG="iso-work/boot/isolinux/isolinux.cfg"
@@ -110,7 +60,7 @@ jobs:
           cat "${ISOLINUX_CFG}"
 
           sed -i \
-            's|--- /install.img|answerfile=file:///answerfile.xml install --- /install.img|' \
+            's|--- /install.img|answerfile=http://192.168.0.1/answerfile.xml install --- /install.img|' \
             "${ISOLINUX_CFG}"
 
           echo "▶ After patch:"
