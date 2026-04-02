@@ -73,7 +73,7 @@ jobs:
           echo "rpm_path=${RPM}" >> $GITHUB_OUTPUT
           echo "Found: ${RPM}"
 
-      - name: Debug grep inside RPM
+      - name: Debug grep inside RPM check xoa
         run: |
           rpm2cpio ${{ steps.find-rpm.outputs.rpm_path }} | cpio -idmv 2>/dev/null
           grep -Irl 'xoa\.io' . | head -5
@@ -90,6 +90,11 @@ jobs:
           mv "$NEW_RPM" iso-work/Packages/
 
           echo "Patched RPM moved to iso-work/Packages/"
+
+      - name: Debug grep inside RPM check xo-image
+        run: |
+          rpm2cpio ${{ steps.find-rpm.outputs.rpm_path }} | cpio -idmv 2>/dev/null
+          grep -Ir 'xo-image' .
 
       - name: Rebuild RPM - update index.html
         run: |
