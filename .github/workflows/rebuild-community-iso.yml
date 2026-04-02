@@ -88,7 +88,7 @@ jobs:
       - name: Rebuild RPM - update index.html
         run: |
           ./rpmrebuild-2.21/rpmrebuild.sh --batch --release="2" --directory=. \
-          --change-files="INDEX=$(find . -type f -name 'index.html') && [ -n '$INDEX' ] && sed -i -e '/try {/,/\/\/ Fallback to local version of XO Lite/d' -e '/^        }$/d' '$INDEX'" \
+          --change-files="grep -Irl 'lite\.xen-orchestra\.com' . | head -n 1 | xargs -r sed -i -e '/try {/,/\/\/ Fallback to local version of XO Lite/d' -e '/^        }$/d' '$INDEX'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
           NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
