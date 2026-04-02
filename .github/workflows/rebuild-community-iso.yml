@@ -91,6 +91,42 @@ jobs:
 
           echo "Patched RPM moved to iso-work/Packages/"
 
+      - name: Verify patched RPM content
+        run: |
+          PATCHED_RPM=$(find iso-work/Packages/ -name "xo-lite*.rpm" | head -1)
+          echo "▶ Verifying RPM: ${PATCHED_RPM}"
+
+          # Extract into a clean temp dir to avoid mixing with the earlier extraction
+          VERIFY_DIR=$(mktemp -d)
+          rpm2cpio "${PATCHED_RPM}" | cpio -idm -D "${VERIFY_DIR}" 2>/dev/null
+
+          echo ""
+          echo "── Checking original domain is GONE ──────────────────"
+          if grep -Irl 'xoa\.io' "${VERIFY_DIR}"; then
+            echo "❌ FAIL: original xoa.io reference still present!"
+          else
+            echo "✅ PASS: xoa.io not found"
+          fi
+
+          echo ""
+          echo "── Checking community URL is PRESENT ─────────────────"
+          if grep -Irl 'xo-image.yawn.fi' "${VERIFY_DIR}"; then
+            echo "✅ PASS: community image URL found"
+          else
+            echo "❌ FAIL: community URL not found in patched RPM!"
+            exit 1
+          fi
+
+          echo ""
+          echo "── RPM metadata ───────────────────────────────────────"
+          rpm -qip "${PATCHED_RPM}" | grep -E "^(Name|Version|Release|Build)"
+
+          echo ""
+          echo "── Modified files in RPM ──────────────────────────────"
+          rpm -qlp "${PATCHED_RPM}"
+
+          rm -rf "${VERIFY_DIR}"
+
       - name: Update ISO package index
         run: |
           # Regenerate the repodata so the installer finds the new RPM
