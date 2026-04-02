@@ -76,7 +76,7 @@ jobs:
       - name: Rebuild RPM 
         run: |
           ./rpmrebuild-2.21/rpmrebuild.sh --batch --release="2" --directory=. \
-          --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g'" \
+          --change-files="grep -Irl 'xo-image' . | head -n 1 | xargs -r sed -i 's|http://xoa.io/xva|https://xo-image.yawn.fi/downloads/image.xva.gz|g' && INDEX=$(find . -type f -name 'index.html') && [ -n '$INDEX' ] && sed -i -e '/try {/,/\/\/ Fallback to local version of XO Lite/d' -e '/^        }$/d' '$INDEX'" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
           NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
