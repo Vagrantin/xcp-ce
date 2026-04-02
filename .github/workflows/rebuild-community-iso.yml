@@ -72,6 +72,10 @@ jobs:
           RPM=$(find iso-work/Packages/ -name "xo-lite*.rpm" 2>/dev/null | head -1)
           echo "rpm_path=${RPM}" >> $GITHUB_OUTPUT
           echo "Found: ${RPM}"
+      - name: Debug grep inside RPM
+        run: |
+          rpm2cpio ${{ steps.find-rpm.outputs.rpm_path }} | cpio -idmv 2>/dev/null
+          grep -Irl 'xoa\.io' . | head -5
 
       - name: Rebuild RPM - update XoaDeploy
         run: |
