@@ -81,7 +81,7 @@ jobs:
       - name: Rebuild RPM - update XoaDeploy
         run: |
           chmod +x $GITHUB_WORKSPACE/updatexodeploy.sh
-          ./rpmrebuild-2.21/rpmrebuild.sh --batch --directory=. \
+          ./rpmrebuild-2.21/rpmrebuild.sh --batch --release="2" --directory=. \
           --change-files="$GITHUB_WORKSPACE/updatexodeploy.sh" \
           -p ${{ steps.find-rpm.outputs.rpm_path }}
 
@@ -89,18 +89,6 @@ jobs:
           rm -f ${{ steps.find-rpm.outputs.rpm_path }}
           mv "$NEW_RPM" iso-work/Packages/
 
-          echo "Patched RPM moved to iso-work/Packages/"
-
-      - name: Rebuild RPM - update index.html
-        run: |
-          chmod +x $GITHUB_WORKSPACE/updateindexhtml.sh
-          ./rpmrebuild-2.21/rpmrebuild.sh --batch --release="2" --directory=. \
-          --change-files="$GITHUB_WORKSPACE/updateindexhtml.sh" \
-          -p ${{ steps.find-rpm.outputs.rpm_path }}
-
-          NEW_RPM=$(find . -name "xo-lite*.rpm" 2>/dev/null | head -1)
-          rm -f ${{ steps.find-rpm.outputs.rpm_path }}
-          mv "$NEW_RPM" iso-work/Packages/
           echo "Patched RPM moved to iso-work/Packages/"
 
       - name: Update ISO package index
