@@ -32,7 +32,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y xorriso genisoimage isomd5sum \
-                                  rpm2cpio cpio rpm squashfs-tools
+                                  rpm2cpio cpio rpm squashfs-tools \
+                                  syslinux-utils
           wget --max-redirect=5 -O rpmrebuild-2.21.tar.gz https://master.dl.sourceforge.net/project/rpmrebuild/rpmrebuild/2.21/rpmrebuild-2.21.tar.gz?viasf=1
           mkdir rpmrebuild-2.21
           tar -xvf rpmrebuild-2.21.tar.gz -C rpmrebuild-2.21
@@ -143,26 +144,36 @@ jobs:
         run: |
           TAG="ce"
           OUTPUT="xcp-ng-${TAG}.iso"
-          
-          # Capture original boot catalog and efi parameters from the source ISO
-          xorriso -indev xcpng-official.iso -report_system_area cmd 2>/dev/null > boot-params.txt || true
-          
-          genisoimage \
+
+          # ── 1. Extract MBR bootstrap code from original (first 432 bytes only)
+          #       These are the boot stub bytes — NOT the partition table.
+          #       xorriso will build its own partition table from the flags below.
+          dd if=xcpng-official.iso bs=1 count=432 of=iso-mbr.bin status=none
+
+          # ── 2. Build the ISO with xorriso
+          xorriso -as mkisofs \
             -o "${OUTPUT}" \
+            -isohybrid-mbr iso-mbr.bin \
             -r -J -joliet-long \
             -V "XCP-ng ${TAG}" \
             -c boot/isolinux/boot.cat \
             -b boot/isolinux/isolinux.bin \
-            -no-emul-boot \
-            -boot-load-size 4 \
-            -boot-info-table \
+              -no-emul-boot \
+              -boot-load-size 4 \
+              -boot-info-table \
             -eltorito-alt-boot \
             -e boot/efiboot.img \
-            -no-emul-boot \
-            iso-work/ 2>&1
-          
+              -no-emul-boot \
+              -isohybrid-gpt-basdat \
+            iso-work/ 2>&1 | tail -30
+
+          # ── 3. POST-PROCESS: plant the real isohybrid MBR + GPT partition table
+          #       --uefi = add GPT entry for the EFI System Partition (efiboot.img)
+          #       This is what creates the two partitions fdisk sees on USB
+          isohybrid --uefi "${OUTPUT}"
+
           implantisomd5 "${OUTPUT}" || true
-          
+
           echo "OUTPUT=${OUTPUT}" >> $GITHUB_ENV
           ls -lh "${OUTPUT}"
 
