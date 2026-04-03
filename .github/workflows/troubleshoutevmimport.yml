@@ -110,7 +110,7 @@ jobs:
 
           echo ""
           echo "── Checking community URL is PRESENT ─────────────────"
-          if grep -Irl '01:3000' "${VERIFY_DIR}"; then
+          if grep -Irl '1:3000' "${VERIFY_DIR}"; then
             echo "✅ PASS: community image URL found"
           else
             echo "❌ FAIL: community URL not found in patched RPM!"
