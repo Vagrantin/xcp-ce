@@ -18,7 +18,7 @@ on:
 
 jobs:
   # ── Job 1: Build the ISO ────────────────────────────────────────────────────
-  build-iso:
+  troubleshoute-iso:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -110,7 +110,7 @@ jobs:
 
           echo ""
           echo "── Checking community URL is PRESENT ─────────────────"
-          if grep -Irl 'xo-image.yawn.fi' "${VERIFY_DIR}"; then
+          if grep -Irl '01:3000' "${VERIFY_DIR}"; then
             echo "✅ PASS: community image URL found"
           else
             echo "❌ FAIL: community URL not found in patched RPM!"
