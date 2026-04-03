@@ -3,7 +3,7 @@ name: Build XCP-ng Community ISO
 on:
   push:
     branches:
-      - buildiso
+      - fixrebuildiso
   workflow_dispatch:
     inputs:
       xcpng_major_version:
@@ -18,7 +18,7 @@ on:
 
 jobs:
   # ── Job 1: Build the ISO ────────────────────────────────────────────────────
-  build-iso:
+  fixbuild-iso:
     runs-on: ubuntu-latest
     permissions:
       contents: write
