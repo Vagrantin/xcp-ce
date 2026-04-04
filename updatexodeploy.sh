@@ -13,7 +13,7 @@ if [[ -z "${JS_FILE}" ]]; then
 fi
 
 echo "Patching: ${JS_FILE}"
-sed -i 's|http://xoa.io/xva|http://192.168.0.1:3000/image.xva.gz|g' "${JS_FILE}"
+sed -i 's|http://xoa.io/xva|http://192.168.0.1:3000/image.xva|g' "${JS_FILE}"
 
 grep -Irl 'lite\.xen-orchestra\.com' "${SEARCH_ROOT}" | head -n 1 | \
   xargs -r sed -i \

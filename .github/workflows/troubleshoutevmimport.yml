@@ -181,7 +181,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: "XCP-ng Community Edition ${{ github.event.inputs.release_tag }}"
+          name: "XCP-ng Community Edition TBLImportVM ${{ github.event.inputs.release_tag }}"
           body: |
             ## XCP-ng Community ISO — Community Edition
             
@@ -192,6 +192,7 @@ jobs:
             ### What's different
             - XO Lite's "Deploy XOA" button fetches the latest community image URL
               at runtime from `https://xo-image.yawn.fi/downloads/image.txt`
+            - THIS IMAGE IS EXPECTED TO BE AN xva NOT AN xva.gz
             - Everything else is identical to the official XCP-ng 8.3 ISO
             
             ### Base ISO
