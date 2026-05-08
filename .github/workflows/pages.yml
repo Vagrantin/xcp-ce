@@ -1,0 +1,19 @@
+# .github/workflows/pages.yml
+on:
+  push:
+    branches: [main]
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: docs
+      - run: bundle exec jekyll build -s docs -d _site
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - uses: actions/deploy-pages@v4
