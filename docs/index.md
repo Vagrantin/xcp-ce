@@ -5,7 +5,7 @@ nav_order: 1
 ---
 
 # XCP-ng Community Edition
-{: .fs-7 }
+{: .fs-4 }
 
 A free, community-built XCP-ng 8.3 ISO that replaces the stock "Deploy XOA"
 button with a fully **self-hosted** Xen Orchestra.
