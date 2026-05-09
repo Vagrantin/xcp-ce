@@ -8,7 +8,7 @@ nav_order: 3
 # xcp-ng-ce-iso
 {: .no_toc }
 
-ISO assembly pipeline — takes the community RPM and builds a bootable XCP-ng CE ISO.
+ISO assembly pipeline — takes the community RPM builds and release a bootable XCP-ng CE ISO.
 {: .fs-6 .fw-300 }
 
 **Repository:** [Vagrantin/xcp-ng-ce-iso](https://github.com/Vagrantin/xcp-ng-ce-iso)
@@ -25,7 +25,8 @@ ISO assembly pipeline — takes the community RPM and builds a bootable XCP-ng C
 ## Purpose
 
 This repo takes the signed `xo-lite-community` RPM produced by
-[`xolite-ce`](xolite-ce), overlays it onto a stock XCP-ng 8.3 base using the
+[`xolite-ce`](xolite-ce) and the signed `xoa-proxy` RPM produced by
+[`xoa-proxy`](xoa-proxy), overlays them onto a stock XCP-ng 8.3 base using the
 official [`create-install-image`](https://github.com/xcp-ng/create-install-image)
 toolchain, and publishes the resulting ISO as a GitHub Release.
 
@@ -35,10 +36,6 @@ toolchain, and publishes the resulting ISO as a GitHub Release.
 
 XCP-ng's official installer ISO is assembled with the `create-install-image`
 toolchain. XCP-ng CE uses it directly rather than maintaining a fork.
-
-{: .important }
-The toolchain's default branch is **`master`** — there is no `main` branch.
-Always clone with `--branch master` or omit the branch flag.
 
 The toolchain provides two scripts:
 
@@ -92,6 +89,7 @@ with `repodata/` under the arch subdirectory:
 community-repo/
 └── x86_64/
     ├── xo-lite-community-*.rpm
+    ├── xoa-proxy-*.rpm
     └── repodata/
         ├── repomd.xml
         └── ...
@@ -115,24 +113,6 @@ The build runs inside `xcp-ng-build-env:8.3`, committed as
 docker run --name xcpng-build xcp-ng/xcp-ng-build-env:8.3 /bin/true
 docker commit xcpng-build xcp-ng-build-ready
 ```
-
-### Critical Dockerfile settings
-
-Two environment variables **must** be set via `ENV` in the Dockerfile, not
-via `-e` at runtime:
-
-```dockerfile
-ENV TMPDIR=/tmp
-ENV HOME=/tmp
-```
-
-**Why:** `misc.sh` in `create-install-image` unconditionally reassigns
-`TMPDIR` at runtime, overriding any value passed via `docker run -e TMPDIR=`.
-The `ENV` instruction in the Dockerfile is the only reliable way to seed the
-value before `misc.sh` runs. `HOME` must also be redirected because
-`create-iso.sh` runs as a non-root user that has no real home directory in
-the container.
-
 ---
 
 ## Build process — step by step
@@ -143,6 +123,11 @@ the container.
 # Download signed RPM from xolite-ce latest release
 gh release download --repo Vagrantin/xolite-ce \
     --pattern "xo-lite-community-*.rpm" \
+    --dir community-repo/x86_64/
+
+# Download signed RPM from xoa-proxy latest release
+gh release download --repo Vagrantin/xoa-proxy \
+    --pattern "xoa-proxy-*.rpm" \
     --dir community-repo/x86_64/
 
 # Generate repo metadata
@@ -173,8 +158,7 @@ sudo ./create-installimg.sh \
 ```
 
 The `--define-repo` flag must list all three repos: `base`, `updates`, and
-`community`. Omitting any one causes the installer to fall back to defaults
-that don't include the community packages.
+`community`.
 
 ### 4. Run create-iso.sh (non-root)
 
@@ -190,15 +174,13 @@ that don't include the community packages.
 ### 5. isohybrid post-processing
 
 {: .important }
-This step is **required** for the ISO to boot on physical hardware. Without it,
-the ISO only boots in virtual environments that use El Torito directly.
+This step is **required** for the ISO to boot on physical hardware that don't support UEFI.
 
 ```bash
 isohybrid --uefi output.iso
 ```
 
-`xorriso` flags alone do not write the hybrid MBR/GPT partition table. Verify
-the result with:
+Verify the result with:
 
 ```bash
 fdisk -l output.iso
@@ -221,7 +203,6 @@ gh release upload <tag> output.iso SHA256SUMS SHA256SUMS.asc
 
 {: .warning }
 `install.img` is a **SquashFS** archive. Do **not** use `cpio` to repack it.
-A `cpio`-repacked `install.img` will cause a kernel panic at boot.
 
 ### Unpacking and repacking
 
@@ -236,37 +217,19 @@ unsquashfs -d installimg-root install.img
 mksquashfs installimg-root install.img.new -comp xz -b 131072
 ```
 
-### answerfile.xml injection
+### answerfile.xml injection (Optional)
 
 `answerfile.xml` referenced via `file:///` in the installer resolves to the
 **ramdisk root** (from `install.img`), not the ISO CD-ROM root. To inject an
 answerfile for unattended installs, place it inside `install.img` via the
 SquashFS repack workflow above.
 
-GPG-related answerfile attributes (not in the official docs — found in
-`answerfile.py` source):
+Disable GPG-related checkes answerfile attributes
 
 ```xml
 <installation gpgcheck="false" repo-gpgcheck="false">
   ...
 </installation>
-```
-
-Both attributes must be set explicitly for the community repo to work in
-Path A mode.
-
----
-
-## Debugging
-
-Debug scripts are committed to `scripts/debug/` and overlaid after cloning
-`create-install-image`. This avoids fragile runtime injection. The
-`DEBUG_BUILD` GitHub Actions variable toggles this overlay on/off:
-
-```yaml
-- name: Overlay debug scripts
-  if: vars.DEBUG_BUILD == 'true'
-  run: cp -r scripts/debug/* create-install-image/
 ```
 
 ---
@@ -331,22 +294,8 @@ Key steps:
 ```
 
 {: .note }
-The Docker volume mount must reference `create-install-image` (not
-`create-install-image-debug` or any other variant). Verify the mount target
-matches the actual cloned directory name.
-
----
-
-## Common pitfalls
-
-| Problem | Cause | Fix |
-|---|---|---|
-| Kernel panic at boot | `cpio` used instead of `mksquashfs` | Use `mksquashfs -comp xz -b 131072` |
-| ISO won't boot on physical hardware | Missing `isohybrid` step | Run `isohybrid --uefi output.iso` after `create-iso.sh` |
-| Community RPM not found during install | Wrong repo base URL or missing arch subdir | Ensure `createrepo_c` ran against `community-repo/x86_64/`, not `community-repo/` |
-| GPG pubkey not in installroot RPM DB | `rpm --import` ran in container scope | Use `rpm --root=$ROOTFS --import` |
-| Double slash in TMPDIR paths | `misc.sh` reassigns TMPDIR | Set `ENV TMPDIR=/tmp` in Dockerfile |
-| `gpg-pubkey` erase failure in cleanup | Pubkey not found in installroot DB | See Path B GPG issue in GitHub Issues |
+The Docker volume mount must reference `create-install-image` 
+Verify the mount target matches the actual cloned directory name.
 
 ---
 

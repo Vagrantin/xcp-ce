@@ -27,52 +27,67 @@ feedback and upstream changes. Open an issue on
 
 These are actively being worked on or are well-defined enough to implement soon.
 
-### Path B — GPG key injection into installer keyring
+### GPG key management
 {: .d-inline-flex }
 
 Security
 {: .label .label-red }
 
-Currently the community RPM repo is installed with `gpgcheck=false` passed as
-a boot parameter (Path A). This is a pragmatic workaround. Path B will inject
-the community GPG public key (`RPM-GPG-KEY-xcp-ng-ce`) directly into the
-XCP-ng installer's RPM keyring during ISO assembly, enabling `gpgcheck=true`
-with proper signature verification end-to-end.
+Full refactor of the GPG key management.
+The current goal is to have one key per module if doable.
+1 key for xo-lite-ce RPM package
+1 key for xoa-proxy RPM package
+1 key for XCP-ng-ce ISO image
 
-**Tracked:** [xcp-ng-ce-iso GitHub Issues](https://github.com/Vagrantin/xcp-ng-ce-iso/issues)
+**Tracked:** [xcp-ce#2](https://github.com/Vagrantin/xcp-ce/issues/2)
 
 ---
 
-### VIF auto-selection fix
+### Release publication fix
 {: .d-inline-flex }
 
-Bug fix
-{: .label .label-yellow }
+Bug
+{: .label .label-red }
 
-During the XOA deployment flow, XO Lite's `filteredNetworks` list is sorted
-alphabetically. This causes "Host internal management network" to be
-auto-selected over the primary NIC-backed network — resulting in an XOA VM
-with no usable external network interface.
+Fix the current release publication pipeline to ensure artifacts are correctly
+published and accessible when a new xcp-CE release is availabale.
 
-**Fix:** filter networks that have no Physical Interface (PIF) association
-before sorting, so only externally routable networks are offered for
-auto-selection.
+**Tracked:** [xcp-ce#3](https://github.com/Vagrantin/xcp-ce/issues/3)
 
 ---
 
-### Configurable xoa-proxy endpoint
+### XO Lite — "Deploy XOA" button state on success
 {: .d-inline-flex }
 
-Enhancement
-{: .label .label-blue }
+Bug
+{: .label .label-red }
 
-The `xoa-proxy` listen address and the XVA image path are currently
-hardcoded (`http://192.168.0.1:3000/image.xva`). The next release will make
-these configurable via a simple config file or environment variable, so
-community members who host the image on a different server can adapt without
-patching source code.
+After a successful XOA deployment the "Deploy XOA" button does not switch to 
+"Access XOA". Fix the reactive state update in the deploy composable
+so the UI correctly reflects a finished deployment. This is already working 
+on upstream and broken with my changes.
+
+**Tracked:** [xolite-ce#4](https://github.com/Vagrantin/xolite-ce/issues/4)
 
 ---
+
+### Website documentation & CI/CD integration
+{: .d-inline-flex }
+
+CI/CD
+{: .label .label-green }
+
+Integrate the CI/CD pipeline output so that documentation updates are
+automatically published to the project website on every successful build,
+keeping the published docs in sync with the repository without manual steps.
+
+**Tracked:** [xcp-ce#4](https://github.com/Vagrantin/xcp-ce/issues/4)
+
+---
+
+## Medium term
+
+Items that are planned but require more design or upstream coordination.
 
 ### Automated upstream version tracking
 {: .d-inline-flex }
@@ -83,35 +98,77 @@ CI/CD
 A GitHub Actions workflow will periodically check for new XCP-ng 8.x point
 releases and XO Lite version bumps. When a new upstream tag is detected, it
 will open a PR that updates the version pin and re-runs the full build
-pipeline, giving maintainers a one-click release bump.
+pipeline.
 
 ---
 
-## Medium term
+### Xen Orchestra Community edition (XOA-CE)
+{: .d-inline-flex }
 
-Items that are planned but require more design or upstream coordination.
+Enhancement
+{: .label .label-blue }
 
-### XCP-ng 8.4 / next major support
-When XCP-ng 8.4 (or the next LTS) is released, CE will track it. The
-two-repo build strategy (`xolite-ce` + `xcp-ng-ce-iso`) is designed to
-make this straightforward — the patch file either applies cleanly or
-surfaces as a build failure, prompting an intentional review.
+Produce a community-patched XOA appliance that removes all banners related to
+lack of commercial support and strips out features that require a Vates license,
+resulting in a clean, fully open community image for home-labbers.
 
-### HTTPS-only XOA proxy with self-signed cert rotation
-Replace the current HTTP/HTTPS dual-mode proxy with a hardened HTTPS-only
-mode. The proxy will generate or rotate a self-signed certificate on first
-boot, and XO Lite will be patched to trust it via a pinned fingerprint.
+**Tracked:** [xcp-ce#5](https://github.com/Vagrantin/xcp-ce/issues/5)
 
-### Community XOA image update channel
-Provide a documented, tested process for updating the bundled XOA image
-to a newer Xen Orchestra release without reinstalling XCP-ng CE — using
-the same `xoa-proxy` streaming mechanism but pointed at a new XVA.
+---
 
-### answerfile.xml automated install support
-Provide an example `answerfile.xml` for fully unattended CE deployments
-(PXE boot / scripted provisioning). This requires the answerfile to be
-injected inside `install.img` (SquashFS), which the current build pipeline
-already supports.
+### xoa-proxy — memory footprint reduction
+{: .d-inline-flex }
+
+Enhancement
+{: .label .label-blue }
+
+Profile and reduce the runtime memory consumption of the `xoa-proxy` Rust
+service, which currently streams XVA images to XAPI. Target: smaller idle
+footprint without compromising streaming throughput.
+
+**Tracked:** [xoa-proxy#1](https://github.com/Vagrantin/xoa-proxy/issues/1)
+
+---
+
+### xoa-proxy — dependency (crate) reduction
+{: .d-inline-flex }
+
+Enhancement
+{: .label .label-blue }
+
+Audit the Cargo dependency tree and replace or remove crates where the same
+functionality can be achieved with fewer or lighter dependencies, improving
+compile times and reducing the attack surface.
+
+**Tracked:** [xoa-proxy#2](https://github.com/Vagrantin/xoa-proxy/issues/2)
+
+---
+
+### xoa-proxy — logrotate timezone (UTC offset)
+{: .d-inline-flex }
+
+Bug
+{: .label .label-yellow }
+
+The `logrotate` configuration for `xoa-proxy` uses UTC timestamps regardless
+of the host's local timezone. Align log rotation timestamps with the host
+timezone so log files are dated consistently with the system time and date.
+
+**Tracked:** [xoa-proxy#3](https://github.com/Vagrantin/xoa-proxy/issues/3)
+
+---
+
+### xolite-ce RPM — LICENSE file
+{: .d-inline-flex }
+
+Enhancement
+{: .label .label-blue }
+
+Include a proper `LICENSE` file inside the `xo-lite-ce` RPM package so that
+the license terms are discoverable from the installed package metadata and
+comply with RPM packaging best practices.
+
+**Tracked:** [xolite-ce#1](https://github.com/Vagrantin/xolite-ce/issues/1)
 
 ---
 
@@ -119,17 +176,27 @@ already supports.
 
 These are possibilities the project is considering but has not committed to.
 
-### Web-based community dashboard
-A lightweight static page (no backend) served by `xoa-proxy` that shows
-available XOA image versions, changelog, and a one-click update trigger.
+### Container support out of the box
+{: .d-inline-flex }
 
-### Multi-arch support
-Explore building CE ISOs for ARM64 targets as XCP-ng upstream ARM support
-matures.
+Exploratory
+{: .label .label-purple }
 
-### Community plugin registry
-A mechanism for the community to distribute additional XO plugins via the
-same RPM + GPG pipeline used for XO Lite CE.
+Provide the ability to deploy and manage containers directly from XO Lite or
+XOA, addressing a long-standing community request. This requires significant
+investigation: containers running in Dom0 carry risk of uncontrolled behaviour
+and the XCP-ng toolstack must be made aware of their existence. Administration
+from XOA adds further complexity. No implementation commitment has been made.
+
+**Tracked:** [xcp-ce#6](https://github.com/Vagrantin/xcp-ce/issues/6)
+
+---
+
+### answerfile.xml automated install support
+Provide an example `answerfile.xml` for fully unattended CE deployments
+(PXE boot / scripted provisioning). This requires the answerfile to be
+injected inside `install.img` (SquashFS), which the current build pipeline
+already supports.
 
 ---
 

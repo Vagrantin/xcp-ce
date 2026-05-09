@@ -8,7 +8,7 @@ nav_order: 1
 # xoa-proxy
 {: .no_toc }
 
-Rust HTTP/HTTPS proxy that streams the community XOA image to XAPI.
+Rust HTTP/HTTPS proxy that streams the an XOA image to XAPI.
 {: .fs-6 .fw-300 }
 
 **Repository:** [Vagrantin/xoa-proxy](https://github.com/Vagrantin/xoa-proxy)
@@ -28,15 +28,12 @@ When XO Lite's patched "Deploy XOA" button is clicked, XAPI needs to import
 a `.xva` VM archive. XAPI calls `VM.import` with a URL — it expects the server
 at that URL to serve the file over HTTP.
 
-The challenge is that a standard XVA can be several gigabytes. Loading it into
-memory before serving it would exhaust Dom0 RAM. `xoa-proxy` solves this by
-**streaming** the file from disk directly to the XAPI caller using Rust's async
-I/O, with no intermediate buffering.
+The challenge is that a standard XVA can be several gigabytes.`xoa-proxy` solves this by
+**streaming** the file directly to the XAPI.
 
 Additionally, XVA files are not inherently compressed, making network transfer
-slow on low-bandwidth management networks. `xoa-proxy` serves the file with
-`Content-Encoding: gzip`, letting XAPI decompress on the fly while receiving —
-the disk image itself can be stored pre-compressed or plain.
+slow on low-bandwidth management networks. `xoa-proxy` serves the file to XAPI with
+a decompressed on the fly image.
 
 ---
 
@@ -46,10 +43,7 @@ the disk image itself can be stored pre-compressed or plain.
 
 | Choice | Rationale |
 |---|---|
-| **Rust** | Memory safety without GC pauses; ideal for a long-lived server process in Dom0 |
-| **hyper** (async HTTP) | Low overhead, no framework bloat; direct control over response headers |
-| **tokio** async runtime | First-class async I/O; `tokio::fs::File` integrates naturally with hyper |
-| **tokio_util::io::ReaderStream** | Converts an async file reader into a `Stream<Item = Bytes>` that hyper can consume chunk by chunk — the key to zero-copy streaming |
+| **Rust** | Memory safety, good for a long-lived server process in Dom0 |
 
 ### Request flow
 
@@ -57,16 +51,15 @@ the disk image itself can be stored pre-compressed or plain.
 XO Lite (browser)
     │  HTTP GET /image.xva
     ▼
-xoa-proxy (Rust / hyper)
-    │  Open image.xva from disk
-    │  Build HTTP 200 response:
-    │    Content-Type: application/octet-stream
-    │    Content-Encoding: gzip
-    │    Transfer-Encoding: chunked
-    │  Stream via ReaderStream → hyper body
+xoa-proxy
+    │  
+    │ HTTP/HTTPS interface for XAPI
+    │ Decompress Gzip format on the fly
+    │  
+    │  
+    │  
     ▼
 XAPI VM.import
-    │  Decompresses gzip on the fly
     │  Writes VDIs to local SR
     ▼
 XOA VM created
@@ -74,10 +67,10 @@ XOA VM created
 
 ### HTTP vs HTTPS
 
-The proxy supports both. In the current release the XO Lite patch targets
-the HTTP endpoint (`http://192.168.0.1:3000`). HTTPS support is present in
-the codebase for future use when the certificate trust story is resolved
-(see [Roadmap](../roadmap)).
+xoa-proxy supports both HTTP and HTTPS (including self-signed certificates) when fetching the upstream XOA image. 
+During download, gzip-compressed images are decompressed on the fly so that XAPI always receives a raw, uncompressed XVA stream.
+The handoff to XAPI via VM.import is deliberately served over HTTP/1.0 — XAPI does not support chunked transfer encoding (an HTTP/1.1 feature),
+so using HTTP/1.1 framing would corrupt the import. The proxy handles this constraint internally; callers do not need to configure anything.
 
 ---
 
@@ -112,9 +105,6 @@ let response = Response::builder()
     .body(body)?;
 ```
 
-Each chunk is read from disk and forwarded to the TCP socket immediately.
-Dom0 RAM usage is bounded by the hyper chunk size, not the file size.
-
 ---
 
 ## Building
@@ -126,9 +116,9 @@ Dom0 RAM usage is bounded by the hyper chunk size, not the file size.
 
 ```bash
 # Native build (for testing)
-cargo build --release
+cargo build
 
-# Cross-compile for Dom0 (static musl binary)
+# Cross-compile for Dom0 (static musl binary) - use optimization in .cargo/config.toml
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target x86_64-unknown-linux-musl
 ```
@@ -137,7 +127,7 @@ The resulting binary at `target/x86_64-unknown-linux-musl/release/xoa-proxy`
 is a fully static executable with no shared library dependencies — suitable
 for embedding in the XCP-ng DOM0 environment.
 
-### Running locally for development
+### Running locally for development or tests
 
 ```bash
 # Place a test XVA (or any large file) at the expected path
@@ -146,7 +136,7 @@ cp /path/to/test.xva image.xva
 # Start the proxy
 ./target/release/xoa-proxy
 
-# Test streaming in another terminal
+# Test streaming
 curl -v http://127.0.0.1:3000/image.xva -o /dev/null
 ```
 
@@ -155,26 +145,19 @@ curl -v http://127.0.0.1:3000/image.xva -o /dev/null
 ## Configuration
 
 In the current release the listen address and image path are hardcoded.
-Making them configurable is on the [Roadmap](../roadmap).
 
 | Parameter | Current value |
 |---|---|
-| Listen address | `0.0.0.0:3000` |
-| Image path | `image.xva` (relative to working directory) |
-| Image metadata | `image.txt` (served alongside the XVA) |
+| Listen address | `127.0.0.1:3000` |
+| Proxy endpoint  | `image.xva`|
 
 ---
 
 ## Integration with XO Lite CE
 
 The XO Lite patch in [`xolite-ce`](xolite-ce) sets the deploy URL to
-`http://192.168.0.1:3000/image.xva`. This is the address `xoa-proxy` listens
-on when started on a XCP-ng CE host where `192.168.0.1` is the management
-interface IP.
-
-{: .warning }
-If your management network uses a different subnet, the hardcoded IP will not
-match. A configurable endpoint is planned for the next release.
+`http://127.0.0.1:3000/image.xva`. This is the address `xoa-proxy` listens
+on when started on a XCP-ng CE host.
 
 ---
 
@@ -184,8 +167,8 @@ match. A configurable endpoint is planned for the next release.
 # Run unit and integration tests
 cargo test
 
-# Tests are in tests/
-# They spin up the proxy on a random port and verify streaming behaviour
+# Integration tests are in tests/
+# They spin up the proxy and verify streaming behaviour
 ```
 
 ---

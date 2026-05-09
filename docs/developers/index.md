@@ -25,19 +25,21 @@ XCP-ng CE is split across three functional repositories plus this
 documentation/release repo.
 
 ```
-Vagrantin/xcp-ce          ← docs (this site) + ISO GitHub Releases
+Vagrantin/xcp-ce          ← docs (this site)
       │
       ├── Vagrantin/xolite-ce       ← XO Lite patch + RPM build
       │         │ publishes signed RPM as GitHub Release artifact
-      │         ▼
-      └── Vagrantin/xcp-ng-ce-iso   ← ISO assembly
-                │ downloads RPM from xolite-ce, assembles ISO
+      │         │ 
+      ├─────────│───Vagrantin/xoa-proxy           ← Rust HTTP proxy + RPM build
+      │         │        │  publishes signed RPM as GitHub Release artifact
+      │         ▼        ▼
+      └── Vagrantin/xcp-ng-ce-iso   ← ISO assembly + ISO GitHub Releases
+                │ downloads RPM from xolite-ce and xoa-proxy, assembles ISO
                 │
-      Vagrantin/xoa-proxy           ← Rust HTTP proxy (bundled in ISO)
 ```
 
 Each repo has its own GitHub Actions pipeline. They are **loosely coupled**:
-`xolite-ce` publishes versioned RPM artifacts that `xcp-ng-ce-iso` fetches
+`xolite-ce` and `xoa-proxy` publishes versioned RPM artifacts that `xcp-ng-ce-iso` fetches
 by release tag. Neither repo needs to be checked out together for normal
 builds.
 
@@ -71,9 +73,19 @@ builds.
    ├── rpmsign (GPG_PRIVATE_KEY secret)
    └── Publish RPM as GitHub Release asset
 
-2. xcp-ng-ce-iso CI (GitHub Actions)
+2. xoa-proxy CI (GitHub Actions)
+   ├── Install musl toolchain (musl-1.2.4, static libc)
+   ├── Install Rust stable via rustup
+   ├── Add x86_64-unknown-linux-musl target
+   ├── cargo build --release --target x86_64-unknown-linux-musl
+   ├── Prepare RPM sources (binary + systemd unit + logrotate config)
+   ├── rpmbuild → xoa-proxy-<VERSION>.rpm
+   ├── rpmsign (GPG_PRIVATE_KEY secret)
+   └── Publish RPM as GitHub Release asset
+
+3. xcp-ng-ce-iso CI (GitHub Actions)
    ├── Download signed RPM from xolite-ce release
-   ├── Build xoa-proxy (Rust, cross-compiled for Dom0)
+   ├── Download signed RPM from xoa-proxy release
    ├── Set up community-repo/x86_64/ with createrepo_c
    ├── Run create-installimg.sh (root) — builds install.img (SquashFS)
    ├── Run create-iso.sh (non-root) — assembles ISO
@@ -86,37 +98,17 @@ builds.
 
 ## Key design decisions
 
-### Two-repo strategy
-Separating the RPM build from the ISO build keeps concerns clean: `xolite-ce`
-can be iterated on (UI patch, packaging) without touching the ISO toolchain,
-and vice versa. The RPM artifact is the published contract between the two.
+### Three-repo strategy
+Separating each RPM build from the ISO assembly keeps concerns clean:
+`xolite-ce` (UI patch, packaging) and `xoa-proxy` (Rust proxy, packaging)
+can each be iterated on independently without touching the ISO toolchain,
+and vice versa. Each publishes a versioned, signed RPM as a GitHub Release
+artifact — that artifact is the published contract with `xcp-ng-ce-iso`,
+which only consumes and build the ISO.
 
 ### Patch at source level
 The XO Lite patch is applied to the Vue/TypeScript **source** of
-`DeployXoaView.vue`, not to the compiled output. When upstream refactors that
-file, the build fails at patch-apply time rather than silently shipping broken
-code. Updating for a new upstream version is a single `git format-patch`
-operation.
-
-### SquashFS install.img
-`install.img` is a **SquashFS** archive, not a cpio archive. Using `cpio`
-produces a broken image that causes a kernel panic at boot. Always use
-`unsquashfs` / `mksquashfs -comp xz -b 131072`.
-
-### isohybrid post-processing
-`xorriso` flags alone do not stamp the hybrid MBR/GPT partition table needed
-for physical hardware boot. `isohybrid --uefi` must be run as a post-processing
-step. Verify with `fdisk -l` and `xorriso -report_el_torito`.
-
-### RPM DB scope
-`rpm --import` inside a Docker container writes to the **container's** RPM DB,
-not to the chroot installroot. Use `rpm --root=$ROOTFS --import` explicitly.
-
-### TMPDIR / HOME in Docker
-`create-install-image`'s `misc.sh` unconditionally reassigns `TMPDIR` at
-runtime, overriding any `-e TMPDIR=` passed to `docker run`. The only reliable
-way to control it is with `ENV TMPDIR=/tmp` in the `Dockerfile`. Similarly,
-`HOME` must be set via `-e HOME=/tmp` for the non-root `create-iso.sh` step.
+`DeployXoaView.vue`, not to the compiled output.
 
 ---
 
@@ -132,13 +124,9 @@ The community keypair is a 4096-bit RSA key stored as GitHub Actions secrets:
 The corresponding public key (`RPM-GPG-KEY-xcp-ng-ce`) is committed to
 `xolite-ce` and overlaid into the ISO's installer keyring.
 
-> **Current state (Path A):** the installer uses `gpgcheck=false` as a boot
-> parameter. Path B (injecting the key into the installer RPM DB) is tracked
-> as a GitHub Issue in `xcp-ng-ce-iso`.
-
 ---
 
-## Detailed component docs
+## Detailed component
 
 | Page | Description |
 |---|---|

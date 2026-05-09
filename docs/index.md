@@ -5,13 +5,14 @@ nav_order: 1
 ---
 
 # XCP-ng Community Edition
-{: .fs-4 }
+{: .fs-9 }
 
-A free, community-built XCP-ng 8.3 ISO that replaces the stock "Deploy XOA"
-button with a fully **self-hosted** Xen Orchestra.
+A free, community-built XCP-ng ISO that replaces the official Xen Orchestra (Aka XOA)
+with a fully **self-hosted** Xen Orchestra. The Goal is ease the deployment of 
+community built XOA images essentially targeting home-labbers.
 {: .fs-6 .fw-300 }
 
-[Download latest ISO](#download){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[Download latest ISO](https://github.com/Vagrantin/xcp-ng-ce-iso/releases/download/xcp-ng-ce-20260508-alpha2/xcp-ng-ce-8.3.iso){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [View on GitHub](https://github.com/Vagrantin/xcp-ce){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
@@ -20,44 +21,49 @@ button with a fully **self-hosted** Xen Orchestra.
 
 [XCP-ng](https://xcp-ng.org/) is a powerful, open-source Type-1 hypervisor
 based on the Xen Project. Officially it ships with **XO Lite**, a lightweight
-in-browser management UI, and a one-click button that deploys the commercial
-**Xen Orchestra Appliance (XOA)** — which requires a Vates account and an
-internet connection to Vates infrastructure.
+in-browser management UI, and a one-click button that deploys the official
+**Xen Orchestra Appliance (XOA)**.
 
 **XCP-ng CE** keeps everything that makes XCP-ng great while replacing that
-single button with a community-maintained workflow:
+single button with a community-maintained workflow.
+Once deployed you will be able to choose between 3 options to deploy XOA
+Official Vates XOA image
+Ronivay's pre-built image
+You custom image
 
-| Upstream XCP-ng 8.3 | XCP-ng Community Edition |
-|---|---|
-| "Deploy XOA" calls home to `vates.tech` | Deploys a local XOA image via the bundled proxy |
-| Requires Vates account for appliance download | Fully self-contained — no external account needed |
-| XO Lite unmodified | XO Lite patched: fixed credentials, community endpoint |
+
+**Xen Orchestra** as of now you will have the choice between the image from Vates
+or the image provided by Ronivay or deploy your own custom image.
+One of the goal is to provide a strip down XOA image that remove the banner related
+to the lack of support as well as remove all the features that requires a license
+from Vates. This is to simplify the usage of XOA and remove menu features that are
+not accessible out of the box.
 
 ---
 
 ## Download
 
 {: .note }
-All releases are signed with the **XCP-ng Community Edition GPG key**
+All ISO and RPMs releases are signed with the **XCP-ng Community Edition GPG key**
 (`RPM-GPG-KEY-xcp-ng-ce`). Verify your download before installing.
 
 ### Latest release — v8.3-ce (April 2026)
 
 | File | Size | SHA256 |
 |---|---|---|
-| [`xcp-ng-8.3-ce.iso`](https://github.com/Vagrantin/xcp-ce/releases/latest) | ~900 MB | *(see release page)* |
+| [`xcp-ng-8.3-ce.iso`](https://github.com/Vagrantin/xcp-ce/releases/latest) | ~650 MB | *(see release page)* |
 
 [⬇ Download ISO](https://github.com/Vagrantin/xcp-ce/releases/latest){: .btn .btn-primary }
 [Release notes](features){: .btn }
 
 #### Verify the ISO
 
-```bash
-# Import the community GPG key
-gpg --keyserver keys.openpgp.org --recv-keys <KEY-ID>
+##### Get the community GPG key
+[GPG Key](https://github.com/Vagrantin/xcp-ng-ce-iso/blob/main/RPM-GPG-KEY-xcp-ng-ce){: .btn }
 
+```bash
 # Verify the checksum file signature
-gpg --verify SHA256SUMS.asc SHA256SUMS
+gpg --verify RPM-GPG-KEY-xcp-ng-ce SHA256SUMS
 
 # Verify the ISO
 sha256sum -c SHA256SUMS
@@ -80,17 +86,17 @@ https://<your-host-ip>
 
 Log in with your XCP-ng root credentials.
 
-### 3 · Deploy the Community XOA
+### 3 · Deploy XOA
 In XO Lite, click **Deploy XOA**. The patched UI calls the bundled
 [`xoa-proxy`](https://github.com/Vagrantin/xoa-proxy) which streams the
-community XOA image (`image.xva`) directly to XAPI — no internet required.
+community XOA image (`image.xva`) directly to XAPI.
 
 ### 4 · Connect XO to your host
 Once the XOA VM has started, open it in your browser and add your XCP-ng host:
 
 ```
 Settings → Servers → Add server
-Host : <your-host-ip>
+Host : <your-XCP-host-ip>
 User : root
 ```
 
@@ -104,17 +110,17 @@ User : root
 │                                                              │
 │  ┌──────────────┐   patch   ┌──────────────────────────────┐ │
 │  │  XO Lite CE  │ ────────► │  DeployXoaView (community)   │ │
-│  │  (RPM)       │           │  fixed credentials + URL     │ │
-│  └──────┬───────┘           └────────────┬─────────────────┘ │
-│         │                                │ HTTP/gzip         │
-│  ┌──────▼───────────────────────────────▼─────────────────┐  │
-│  │                   xoa-proxy (Rust)                      │  │
-│  │       HTTP · HTTPS · gzip · streaming XVA delivery      │  │
-│  └──────────────────────────┬──────────────────────────────┘  │
-│                             │ XAPI VM.import                  │
-│  ┌──────────────────────────▼──────────────────────────────┐  │
-│  │                   XAPI / Dom0                           │  │
-│  └─────────────────────────────────────────────────────────┘  │
+│  │              │           │                              │ │
+│  └──────┬───────┘           └───────────┬──────────────────┘ │
+│         │                               │ HTTP               │
+│  ┌──────▼───────────────────────────────▼──────────────────┐ │
+│  │                   xoa-proxy                             │ │
+│  │       HTTP · HTTPS · gzip · streaming XVA delivery      │ │
+│  └──────────────────────────┬──────────────────────────────┘ │
+│                             │ XAPI VM.import                 │
+│  ┌──────────────────────────▼──────────────────────────────┐ │
+│  │                   XAPI / Dom0                           │ │
+│  └─────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -124,10 +130,10 @@ User : root
 
 | Repository | Role |
 |---|---|
-| [`xcp-ce`](https://github.com/Vagrantin/xcp-ce) | Documentation and ISO releases |
+| [`xcp-ce`](https://github.com/Vagrantin/xcp-ce) | Documentation |
 | [`xolite-ce`](https://github.com/Vagrantin/xolite-ce) | XO Lite community patch + RPM build |
-| [`xcp-ng-ce-iso`](https://github.com/Vagrantin/xcp-ng-ce-iso) | ISO assembly pipeline |
-| [`xoa-proxy`](https://github.com/Vagrantin/xoa-proxy) | Rust HTTP/gzip proxy for XVA delivery |
+| [`xcp-ng-ce-iso`](https://github.com/Vagrantin/xcp-ng-ce-iso) | ISO assembly pipeline and release |
+| [`xoa-proxy`](https://github.com/Vagrantin/xoa-proxy) | Rust HTTP/gzip proxy for XVA delivery + RPM build |
 
 Full technical details in the [Developer section](developers/).
 

@@ -32,7 +32,7 @@ the official release.
 | Dom0 kernel | Linux 4.19 (XCP-ng kernel) |
 | Management API | XAPI (Xen API) |
 | Default networking | Open vSwitch (OVS) |
-| Installer | XCP-ng text installer (unchanged) |
+| Installer | XCP-ng text installer |
 
 ---
 
@@ -43,15 +43,14 @@ the official release.
 XO Lite is the lightweight single-page management UI bundled with every
 XCP-ng host. In Community Edition, the upstream `DeployXoaView.vue` component
 is patched at **source level** before the RPM is built, so the patch is
-minimal and rebasing against new upstream releases is straightforward.
+minimal.
 
 **What the patch changes:**
 
-- The **"Deploy XOA"** button targets the community `xoa-proxy` endpoint
-  instead of `vates.tech`.
-- The credential fields are **read-only** and pre-filled with the community
-  XOA defaults (`admin@admin.net` / `admin` / SSH `xo` / `xopass`).
-- All phone-home behaviour in the deploy flow is removed.
+- The **"Deploy XOA"** button targets an update XOA deploy webpage.
+- The user can now select the official Vates image.
+- The image provided by Ronivay.
+- A custom field to deploy you own XOA image.
 
 Everything else in XO Lite — VM management, console access, SR browsing,
 host metrics — remains untouched.
@@ -59,17 +58,10 @@ host metrics — remains untouched.
 ### xoa-proxy — local XVA delivery
 
 A purpose-built **Rust HTTP server** (`xoa-proxy`) is bundled with the ISO
-and runs on the host during the deploy flow. It:
+and runs on the host, It:
 
-- Serves the community XOA image (`image.xva`) as a gzip-compressed byte
-  stream using async I/O (`tokio` + `hyper`).
-- Sets `Content-Encoding: gzip` so XAPI decompresses transparently on receipt
-  — no temporary file needed, no memory exhaustion.
-- Supports both HTTP and HTTPS.
-- Keeps no logs and holds no persistent state.
-
-Because the proxy streams directly from disk, even hosts with limited RAM
-can import a multi-gigabyte XVA without issues.
+- Serves the community XOA image with support of gzip-compressed format.
+- Supports both HTTP, HTTPS ( including self-signed certificate )
 
 ### Community XOA image
 
@@ -87,6 +79,12 @@ a well-maintained community installer for self-hosted Xen Orchestra.
 
 {: .warning }
 **Change the default passwords immediately** after first login.
+
+
+### Vates XOA image
+
+This is the official Image provide by Vates for XCP-ng multi-host management.
+In this case you can specify the credentials at deployment step.
 
 ---
 
@@ -111,7 +109,7 @@ Available at `https://<host-ip>` immediately after install:
 - VM list: start, stop, reboot, console access.
 - Basic SR and network inspection.
 - **Community deploy flow** (patched): one-click XOA deployment with no
-  external connectivity required.
+  external connectivity required if you host your XOA image on your local network.
 
 ### Xen Orchestra (after XOA deployment)
 
@@ -126,23 +124,31 @@ After clicking "Deploy XOA" in XO Lite, you get a full Xen Orchestra instance:
 - **Rolling pool upgrade** — zero-downtime upgrades via XO.
 - **XOSTOR** — hyper-converged storage setup via the XO UI (3+ nodes).
 
+{: .warning }
+**Some features require a license distributed by Vates**
+
 ---
 
 ## Known limitations in this release
 
 | Limitation | Status |
 |---|---|
-| GPG verification uses `gpgcheck=false` at boot (Path A) | Path B (injecting community key into installer keyring) tracked in [GitHub Issues](https://github.com/Vagrantin/xcp-ng-ce-iso/issues) |
-| VIF auto-selection may pick "Host internal management network" instead of the primary NIC | Known bug — fix planned for next release (see [Roadmap](roadmap)) |
-| `xoa-proxy` endpoint URL is currently hardcoded at `http://192.168.0.1:3000` | Configurable endpoint planned |
-| Tested on physical x86-64 hardware and nested virtualisation only | ARM / other arches not targeted |
+| Xolite-ce - Deploy Button always accessible | issue#4(https://github.com/Vagrantin/xolite-ce/issues/4) - switch the button to access XOA |
+| Xoa-proxy - Logs are in UTC | issue#3(https://github.com/Vagrantin/xoa-proxy/issues/3) - investigation to be done|
+| Xoa-proxy - reduce the number of crates | issue#2(https://github.com/Vagrantin/xoa-proxy/issues/2) - investigation to be done |
+| Xoa-proxy - Reduce memory footprint | issue#1(https://github.com/Vagrantin/xoa-proxy/issues/1) - xoa runs on Dom0 we must control it's impact on the performances |
+| Xcp-ce - release publication versioning | issue#3() - versioning is currently all over the place and doesn't make any sense |
+| Xcp-ce - GPG keys | issue#2() - GPG keys are not yet correctly manage and will have to be renewed a separated |
 
 ---
 
 ## Changelog
+### v8.3-ce alpha2 (May 2026)
+- Initial public release.
+- First usable release.
+- Provide basic feature to deploy from Vates, Ronivay or custom URL.
 
 ### v8.3-ce (April 2026)
-- Initial public release.
 - XO Lite patched: community deploy endpoint, read-only credential fields.
 - `xoa-proxy` Rust server bundled: HTTP/HTTPS, gzip streaming.
 - ISO assembled from upstream XCP-ng 8.3 with community RPM repo overlay.
