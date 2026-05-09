@@ -252,8 +252,11 @@ Key steps:
 - name: Set up Docker build environment
   run: docker build -t xcp-ng-build-ready -f Dockerfile.build .
 
-- name: Download community RPM
+- name: Download xolite-ce RPM
   run: gh release download --repo Vagrantin/xolite-ce ...
+
+- name: Download xoa-proxy RPM
+  run: gh release download --repo Vagrantin/xoa-proxy ...
 
 - name: Prepare community repo
   run: createrepo_c community-repo/x86_64/
