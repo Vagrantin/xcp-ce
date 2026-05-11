@@ -31,9 +31,9 @@ SPA inside the `vatesfr/xen-orchestra` monorepo at
 `packages/@xen-orchestra/lite`.
 
 On a standard XCP-ng host, XO Lite includes a **"Deploy XOA"** screen
-(`DeployXoaView.vue`) that download and import the official Xen Orchestra Appliance.
-XCP-ng CE replaces this behaviour with a community-hosted deployment that requires no internet access
-if you host locally your XOA image.
+(`DeployXoaView.vue`) that downloads and imports the official Xen Orchestra Appliance.
+XCP-ng CE replaces this behaviour with a community-hosted deployment that requires no
+internet access if you host your XOA image locally.
 
 ---
 
@@ -72,11 +72,11 @@ The patch modifies `DeployXoaView.vue` only. It:
 5. Build XO Lite: yarn build:xo-lite
 6. Assemble RPM source tarball
 7. rpmbuild -ba SPECS/xo-lite-community.spec
-8. rpmsign with community GPG key
-9. Publish RPM as GitHub Release asset
+8. rpmsign with the RPM signing subkey (GPG_PRIVATE_KEY + GPG_PASSPHRASE)
+9. Publish RPM + xcp-ng-ce-public.asc as GitHub Release assets
 ```
 
-### version detection
+### Version detection
 
 The target XO Lite version is read from the RPM already on the upstream
 XCP-ng ISO, not hardcoded:
@@ -122,7 +122,7 @@ the XCP-ng host to load XO Lite in the browser.
 - Node.js 20+ and Yarn (enabled via `corepack enable`)
 - `rpmbuild` (`rpm-build` package on RHEL/CentOS/Fedora)
 - `rpmsign` (`rpm-sign` package)
-- GPG key imported in your keyring
+- The community GPG public key imported in your keyring
 
 ### Workflow
 
@@ -170,7 +170,32 @@ git format-patch HEAD~1 -o ../patches/
 
 ## GPG signing
 
-The RPM is signed with the community key during CI
+The `xo-lite-community` RPM is signed with the **RPM signing subkey** of the
+XCP-ng Community Edition keypair. The same subkey is also used to sign the
+`xoa-proxy` RPM — there is one shared subkey for all community RPMs.
+
+The public key (`xcp-ng-ce-public.asc`) is the same file distributed with
+every release. Importing it once is sufficient to verify any community RPM.
+
+To verify the RPM locally:
+
+```bash
+# Option 1 — fetch from keyserver
+gpg --keyserver keys.openpgp.org --recv-keys 2F591DB9D2C128C4C3D963F46DA00DCA5BBA215A
+
+# Option 2 — import from the release page
+gpg --import xcp-ng-ce-public.asc
+
+# Check the RPM signature
+rpm --checksig xo-lite-community-*.rpm
+```
+
+In CI, the signing subkeys are stored as a single exported secret (no master key):
+
+| Secret | Content |
+|---|---|
+| `GPG_PRIVATE_KEY` | ASCII-armored exported signing subkeys |
+| `GPG_PASSPHRASE` | Subkey passphrase |
 
 ---
 
@@ -202,12 +227,16 @@ Key steps:
 - name: Sign RPM
   run: |
     echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+    echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --passphrase-fd 0 --batch \
+      --pinentry-mode loopback --yes --armor
     rpm --addsign RPMS/x86_64/xo-lite-community-*.rpm
 
 - name: Publish release
   uses: softprops/action-gh-release@v1
   with:
-    files: RPMS/x86_64/xo-lite-community-*.rpm
+    files: |
+      RPMS/x86_64/xo-lite-community-*.rpm
+      xcp-ng-ce-public.asc
 ```
 
 ---
