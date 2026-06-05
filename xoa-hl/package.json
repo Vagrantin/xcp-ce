@@ -1,0 +1,11 @@
+{
+  "name": "xoa-hl",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@xen-orchestra/plugin": "^1.0.0"
+  },
+  "author": "",
+  "license": "Agpl"
+}
