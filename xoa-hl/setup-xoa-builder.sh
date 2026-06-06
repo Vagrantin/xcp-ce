@@ -27,7 +27,7 @@ VM_NETWORK_NAME="${VM_NETWORK_NAME:-Pool-wide network associated with eth0}"
 VM_NAME="${VM_NAME:-xoa-community-edition}"
 DEBIAN_ROOT_PASSWORD="${DEBIAN_ROOT_PASSWORD:-YOUR_SECURE_VM_PASSWORD}"
 DEBIAN_ISO_URL="${DEBIAN_ISO_URL:-https://cdimage.debian.org/mirror/cdimage/archive/12.5.0/amd64/iso-cd/debian-12.5.0-amd64-netinst.iso}"
-DEBIAN_ISO_CHECKSUM="${DEBIAN_ISO_CHECKSUM:-sha256:7398b688321cb170364d96a77d13ebbf0062b08fa1fb1fb98e21975b9f71c356}"
+# DEBIAN_ISO_CHECKSUM is intentionally left blank here if not provided via config, to be fetched dynamically later.
 
 # 3. Purge any broken legacy files from previous failed runs
 sudo rm -f /etc/apt/sources.list.d/hashicorp.list
@@ -67,6 +67,32 @@ packer plugins install github.com/ddelnano/xenserver
 # 8. Configure Firewall for Packer HTTP Server
 echo -e "\n---> Configuring UFW Firewall (Ports 8000-9000)..."
 sudo ufw allow 8000:9000/tcp
+
+# 8.5 Dynamically resolve ISO Checksum if not explicitly predefined
+if [ -z "$DEBIAN_ISO_CHECKSUM" ]; then
+    echo -e "\n---> Resolving ISO Checksum dynamically..."
+    ISO_FILENAME=$(basename "$DEBIAN_ISO_URL")
+    ISO_BASE_URL=$(dirname "$DEBIAN_ISO_URL")
+    
+    # Safely pull the mirror's SHA256SUMS file without breaking on pipeline failures
+    SHA256_CONTENT=$(curl -sSL "${ISO_BASE_URL}/SHA256SUMS" || echo "")
+    
+    if [ -n "$SHA256_CONTENT" ]; then
+        RAW_HASH=$(echo "$SHA256_CONTENT" | grep "$ISO_FILENAME" | head -n 1 | awk '{print $1}')
+        if [ -n "$RAW_HASH" ]; then
+            DEBIAN_ISO_CHECKSUM="sha256:${RAW_HASH}"
+            echo "Successfully parsed remote checksum: $DEBIAN_ISO_CHECKSUM"
+        fi
+    fi
+
+    # Hard safety fallback in case the URL structure doesn't expose a standard SHA256SUMS file
+    if [ -z "$DEBIAN_ISO_CHECKSUM" ]; then
+        echo "WARNING: Dynamic lookup failed. Falling back to default 12.5.0 static checksum."
+        DEBIAN_ISO_CHECKSUM="sha256:7398b688321cb170364d96a77d13ebbf0062b08fa1fb1fb98e21975b9f71c356"
+    fi
+else
+    echo -e "\n---> Using user-defined configuration checksum: $DEBIAN_ISO_CHECKSUM"
+fi
 
 # 9. Scaffold the Project Structure
 echo -e "\n---> Creating Project Directory & Files..."
