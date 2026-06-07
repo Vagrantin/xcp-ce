@@ -25,6 +25,8 @@ XCPNG_USER="${XCPNG_USER:-root}"
 XCPNG_PASSWORD="${XCPNG_PASSWORD:-YOUR_XCPNG_PASSWORD}"
 VM_NETWORK_NAME="${VM_NETWORK_NAME:-Pool-wide network associated with eth0}"
 VM_NAME="${VM_NAME:-xoa-community-edition}"
+DEBIAN_XO_USER="${DEBIAN_XO_USER:-xo}"
+DEBIAN_XO_PASSWORD="${DEBIAN_XO_PASSWORD:-YOUR_SECURE_XO_PASSWORD}"
 DEBIAN_ROOT_PASSWORD="${DEBIAN_ROOT_PASSWORD:-YOUR_SECURE_VM_PASSWORD}"
 DEBIAN_ISO_URL="${DEBIAN_ISO_URL:-https://cdimage.debian.org/mirror/cdimage/archive/12.5.0/amd64/iso-cd/debian-12.5.0-amd64-netinst.iso}"
 # DEBIAN_ISO_CHECKSUM is intentionally left blank here if not provided via config, to be fetched dynamically later.
@@ -113,9 +115,12 @@ d-i mirror/http/hostname string deb.debian.org
 d-i mirror/http/directory string /debian
 d-i mirror/http/proxy string
 d-i passwd/root-login boolean true
-d-i passwd/make-user boolean false
 d-i passwd/root-password password ${DEBIAN_ROOT_PASSWORD}
 d-i passwd/root-password-again password ${DEBIAN_ROOT_PASSWORD}
+d-i passwd/user-fullname string XenOrchestra User
+d-i passwd/username string ${DEBIAN_XO_USER}
+d-i passwd/user-password password ${DEBIAN_XO_PASSWORD}
+d-i passwd/user-password-again password ${DEBIAN_XO_PASSWORD}
 d-i clock-setup/utc boolean true
 d-i time/zone string UTC
 d-i partman-auto/method string lvm
@@ -128,10 +133,12 @@ d-i partman-partitioning/confirm_write_new_label boolean true
 d-i partman/choose_partition select finish
 d-i partman/confirm boolean true
 d-i partman/confirm_nooverwrite boolean true
+d-i tasksel/first multiselect standard
 d-i pkgsel/include string openssh-server sudo
 d-i grub-installer/only_debian boolean true
 d-i grub-installer/with_other_os boolean true
 d-i grub-installer/bootdev  string default
+d-i preseed/late_command string in-target sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
 d-i finish-install/reboot_in_progress note
 EOF
 
@@ -152,18 +159,19 @@ cat << EOF > xoa-build.json
       "vm_description": "XOA Community Edition - xo-lite compatible",
       "disk_size": 10000,
       "vm_memory": 2048,
+      "http_directory": ".",
       "network_names": ["${VM_NETWORK_NAME}"],
       "boot_command": [
-        "<esc><wait>",
-        "install <wait>",
-        " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg <wait>",
-        "debian-installer=en_US.UTF-8 <wait>",
-        "auto <wait>",
-        "locale=en_US.UTF-8 <wait>",
-        "kbd-chooser/method=us <wait>",
-        "netcfg/get_hostname=xoa <wait>",
-        "netcfg/get_domain=local <wait>",
-        "<enter>"
+       "<wait5><esc><wait>",
+       "install <wait>",
+       " url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg <wait>",
+       " debian-installer=en_US.UTF-8 <wait>",
+       " auto=true <wait>",
+       " priority=critical <wait>",
+       " locale=en_US.UTF-8 <wait>",
+       " keyboard-configuration/xkb-keymap=us <wait>",
+       " interface=auto",
+       " vga=788 noprompt quiet--- <enter>"
       ],
       "boot_wait": "5s",
       "ssh_username": "root",
@@ -179,21 +187,22 @@ cat << EOF > xoa-build.json
       "type": "shell",
       "inline": [
         "echo '==> Updating base system...'",
-        "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
+        "apt-get update && apt-get upgrade -y",
         "echo '==> Installing dependencies...'",
-        "apt-get install -y git curl wget sudo cloud-init xe-guest-utilities",
-        "useradd -m -s /bin/bash xo",
-        "echo 'xo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers",
-        "systemctl enable cloud-init",
-        "systemctl enable xe-linux-distribution"
+        "apt-get install -y curl wget sudo vim git jq cloud-init",
+        "echo '==> Fetching stable Xen Guest Utilities...'",
+        "DOWNLOAD_URL=$(curl -s https://api.github.com/repos/xenserver/xe-guest-utilities/releases/latest | jq -r '.assets[] | select(.name | endswith(\"amd64.deb\")) | .browser_download_url')",
+        "wget -q $DOWNLOAD_URL -O /tmp/xe-guest-utilities.deb",
+        "dpkg -i /tmp/xe-guest-utilities.deb || apt-get install -f -y",
+        "rm -f /tmp/xe-guest-utilities.deb"
       ]
     },
     {
       "type": "shell",
       "inline": [
         "echo '==> Cloning XOA installer...'",
-        "git clone https://github.com/ronivay/xen-orchestra-installer.git /tmp/xoa-installer",
-        "cd /tmp/xoa-installer && git checkout main",
+        "git clone https://github.com/ronivay/XenOrchestraInstallerUpdater.git /tmp/xoa-installer",
+        "cd /tmp/xoa-installer && git checkout master",
         "chown -R xo:xo /tmp/xoa-installer"
       ]
     },
