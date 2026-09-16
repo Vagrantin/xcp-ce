@@ -41,15 +41,29 @@ itself, so a build-time fetch from a CDN cannot creep back in.
   takes it from `actions/configure-pages`, so the site source stays
   byte-identical to the copy in `xcp-hl` and nothing needs editing to move
   between them.
-- **French and Japanese.** Phase 1 is English only.
+- **Live release-matrix data.** `docs/_data/*.yml` here is a one-time
+  snapshot copied over alongside `site/`, not kept current by
+  `xcp-build-agent` the way `xcp-hl`'s own copy is — this repo has no such
+  automation. The release matrix will drift stale; that's fine for what
+  this rehearsal is for (proving the data-driven table mechanism works at
+  all), not for reading current release info.
+
+## What it now covers
+
+All three languages — English, French, Japanese — are migrated
+(`Vagrantin/xcp-hl#60` phases 1–3), each linked via the language switcher
+(globe icon, top right) to the same page in the other two.
 
 ## Keeping the site in sync
 
 `site/` is a straight copy of `site/` on the `claude/gracious-ride-99qg08` branch
-of `Vagrantin/xcp-hl`:
+of `Vagrantin/xcp-hl`, and `docs/_data/*.yml` here is a one-time copy of the
+same path there (see **What it does NOT validate** above):
 
 ```bash
-rsync -a --delete ../xcp-hl/site/ site/
+rm -rf site && cp -a ../xcp-hl/site site
+rm -rf site/public site/resources site/data site/.hugo_build.lock
+cp ../xcp-hl/docs/_data/*.yml docs/_data/
 ```
 
 Build it locally with Hugo extended ≥ 0.146 and Go — see

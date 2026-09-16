@@ -15,3 +15,7 @@ _site_hugo/
 site/public/
 site/resources/
 site/.hugo_build.lock
+
+# Staged from docs/_data/*.yml immediately before `hugo` runs (CI: "Sync
+# release-matrix data" in pages.yml; local dev: see site/README.md).
+site/data/

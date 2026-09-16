@@ -70,6 +70,20 @@ jobs:
           sudo install -m 0755 /tmp/hugo /usr/local/bin/hugo
           hugo version
 
+      # The release matrix (added after this workflow was first written) is
+      # data-driven from docs/_data/*.yml, which Hugo's sandboxing refuses to
+      # read directly from site/ (see site/README.md's "Data staging"
+      # section in Vagrantin/xcp-hl for why). docs/_data/ here is a one-time
+      # snapshot, not live-updated — this repo has no xcp-build-agent — so
+      # the release matrix on this preview will drift from xcp-hl's over
+      # time. That's fine for what this rehearsal is for: proving the
+      # mechanism works, not serving current data.
+      - name: Sync release-matrix data
+        run: |
+          set -euo pipefail
+          mkdir -p site/data
+          cp docs/_data/releases.yml docs/_data/xoa_releases.yml site/data/
+
       # Must run before the repository tree is staged: Hugo cleans its
       # destination directory, exactly as Jekyll does.
       - name: Build site
