@@ -1,0 +1,56 @@
+# xcp-ce
+
+> **This repository is currently being used as a staging ground.**
+>
+> It publishes the Hugo + Hextra documentation site proposed in
+> [Vagrantin/xcp-hl#60](https://github.com/Vagrantin/xcp-hl/issues/60) to
+> <https://vagrantin.github.io/xcp-ce/>, so the new delivery can be validated
+> end to end before cutting over
+> [xcp-hl's production Pages](https://vagrantin.github.io/xcp-hl/).
+>
+> The original Jekyll site under `docs/` is untouched — it is simply no longer
+> published. Reverting the commit that repointed `.github/workflows/pages.yml`
+> restores the old delivery exactly as it was.
+
+## What the preview validates
+
+`.github/workflows/pages.yml` deliberately mirrors the *shape* of xcp-hl's own
+`pages.yml`, so what runs here is what will run there at cutover:
+
+1. the site is built into `../_site` **first**, because the generator cleans its
+   destination directory;
+2. the yum repository tree is staged into `_site` **afterwards**;
+3. one artifact, one deployment.
+
+It then asserts both trees survived in one `_site`. That coexistence is the
+load-bearing constraint on the whole migration — a Pages deploy replaces the
+entire site, so the docs and the signed `xcp-hl-base` repository have to come out
+of a single build — and it is the part most likely to break quietly.
+
+It also asserts that every script, stylesheet and image is served from the site
+itself, so a build-time fetch from a CDN cannot creep back in.
+
+## What it does NOT validate
+
+- **Signed repository metadata.** This repository has no releases and no GPG
+  secrets, so the staged `repo/8.3/x86_64/` tree is a placeholder that only
+  proves the Hugo build does not delete it. Verifying `repodata/repomd.xml`
+  against a real `yum` run stays a Phase 5 acceptance test in `xcp-hl` itself,
+  where `repo_gpgcheck=1` on every installed host makes it matter.
+- **The production URL.** The baseurl here is `/xcp-ce/`, not `/xcp-hl/`. Hugo
+  takes it from `actions/configure-pages`, so the site source stays
+  byte-identical to the copy in `xcp-hl` and nothing needs editing to move
+  between them.
+- **French and Japanese.** Phase 1 is English only.
+
+## Keeping the site in sync
+
+`site/` is a straight copy of `site/` on the `claude/gracious-ride-99qg08` branch
+of `Vagrantin/xcp-hl`:
+
+```bash
+rsync -a --delete ../xcp-hl/site/ site/
+```
+
+Build it locally with Hugo extended ≥ 0.146 and Go — see
+[`site/README.md`](site/README.md).

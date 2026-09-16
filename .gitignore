@@ -8,3 +8,10 @@
 /XenOrchestraInstallerUpdater
 /xoa-hl
 
+
+# Hugo build output and local caches under site/ (docs delivery preview).
+_site/
+_site_hugo/
+site/public/
+site/resources/
+site/.hugo_build.lock
