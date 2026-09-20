@@ -92,8 +92,32 @@ jobs:
           set -euo pipefail
           # --baseURL on the command line, so the site source stays byte-identical
           # to xcp-hl's copy. At cutover this becomes the production URL.
-          hugo --gc --minify --destination ../_site \
-               --baseURL "${{ steps.pages.outputs.base_url }}/"
+          hugo --gc --minify --printPathWarnings --destination ../_site \
+               --baseURL "${{ steps.pages.outputs.base_url }}/" \
+               2>&1 | tee /tmp/hugo-build.log
+
+      # "Duplicate target paths" means two pages are fighting over one URL and
+      # the winner depends on build order. It is a warning in Hugo and an exit
+      # 0, which is how 72 of them shipped to THIS preview site unnoticed: the
+      # default language had no contentDir, so English also claimed every
+      # French and Japanese page. Treat it as the build break it is.
+      - name: Assert no two pages claim the same URL
+        run: |
+          set -euo pipefail
+          if grep -q 'Duplicate target paths' /tmp/hugo-build.log; then
+            echo "::error::two or more pages are being written to the same path"
+            grep 'Duplicate target paths' /tmp/hugo-build.log
+            exit 1
+          fi
+          echo "✅ every page has a URL to itself"
+
+      # The language switcher is content-dependent and silently wrong when the
+      # language trees overlap — nothing in the build fails and the rendered
+      # page looks right. See the script's header comment. This also exercises
+      # the check against a real project-Pages base URL, which the artifact-only
+      # build in xcp-hl does not.
+      - name: Assert the language switcher is correct on every page
+        run: python3 site/scripts/check_switcher.py _site
 
       - name: Assert every loaded asset is local
         run: |
