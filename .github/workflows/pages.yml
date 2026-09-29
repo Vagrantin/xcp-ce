@@ -42,17 +42,27 @@ jobs:
           repository: Vagrantin/xcp-hl
           ref: ${{ env.SRC_REF }}
 
+      # Release automation writes main, independently of the preview source branch.
+      - uses: actions/checkout@v4
+        with:
+          repository: Vagrantin/xcp-hl
+          ref: main
+          path: current-data
+          sparse-checkout: docs/_data
+          persist-credentials: false
+
       - name: Show what is being built
         run: |
           echo "xcp-hl ref : ${SRC_REF}"
           echo "commit     : $(git rev-parse HEAD)"
+          echo "data commit: $(git -C current-data rev-parse HEAD)"
 
       - uses: actions/configure-pages@v5
         id: pages
 
       - uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version: '1.24.7'
           cache-dependency-path: site/go.sum
 
       - name: Install Hugo ${{ env.HUGO_VERSION }} (extended)
@@ -69,6 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p site/data
+          cp current-data/docs/_data/releases.yml current-data/docs/_data/xoa_releases.yml docs/_data/
           cp docs/_data/releases.yml docs/_data/xoa_releases.yml site/data/
 
       - name: Assert the translations match the English structure
@@ -114,6 +125,17 @@ jobs:
             exit 1
           fi
           echo "✅ every script, stylesheet and image is served from this site"
+
+      # Older migration refs predate these checks. New refs must run them here too.
+      - name: Validate links, assets, alternates and legacy URLs when supported
+        run: |
+          set -euo pipefail
+          if [ -f site/scripts/check_site.py ]; then
+            python3 site/scripts/check_site.py _site
+            python3 site/scripts/check_legacy_urls.py _site
+          else
+            echo "::warning::this older source ref has no complete site/legacy-link validation"
+          fi
 
       - name: Stage placeholder yum repository
         run: |
