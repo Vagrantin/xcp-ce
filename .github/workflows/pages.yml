@@ -66,6 +66,8 @@ jobs:
       # Documentation only. The selected xcp-hl ref owns the complete build
       # and validation pipeline; no RPM repository is assembled or signed here.
       - name: Build and validate documentation
+        env:
+          XOA_PUBLICATION_MODE: reviewed
         run: site/scripts/build_docs.sh '${{ steps.pages.outputs.base_url }}/' _site
 
       - name: Verify documentation-only artifact
