@@ -11,11 +11,14 @@ The `Deploy preview Pages (from xcp-hl branch)` workflow checks out a supplied
 `claude/gracious-ride-99qg08`. Use a reviewed branch, tag or commit that includes
 `site/scripts/build_docs.sh` and the XOA-HL manual foundation from issue #189.
 The workflow uses the actual Pages base URL, builds all three languages, runs the
-source repository's validation pipeline, and publishes one documentation artifact.
+source repository's validation pipeline in `XOA_PUBLICATION_MODE=reviewed`, and
+publishes one documentation artifact. A changed English source or translation
+invalidates its revision-bound review record and stops the deployment until the
+affected French/Japanese pages are reviewed again.
 
-Release-matrix data is read from the selected source ref's `docs/_data/` by the
-build script. The displayed source must therefore be updated when release data
-changes; it is not automatically taken from an unrelated main-branch snapshot.
+Release matrices and generated changelog data are staged by the source build
+script from `Vagrantin/xcp-hl` `main`. `RELEASE_DATA_REF=local` is reserved for
+source-checkout testing; the scheduled deployment uses the current main data.
 
 This deployment does not stage RPMs, `.repo` files, repository metadata or fake
 package-repository placeholders. Existing package publishing and the old official
